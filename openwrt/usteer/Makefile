@@ -20,7 +20,7 @@ endef
 define Package/usteer
   SECTION:=net
   CATEGORY:=Network
-  DEPENDS:=+libubox +libubus +libblobmsg-json +libnl-tiny
+  DEPENDS:=+libubox +libubus +libblobmsg-json +libnl-tiny +libpcap
   TITLE:=OpenWrt AP roaming assist daemon
 endef
 
