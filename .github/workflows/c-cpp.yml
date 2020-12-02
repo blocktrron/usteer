@@ -1,0 +1,37 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: configure
+      run: |
+        usteer_git=https://github.com/Keksgesicht/usteer.git
+        arch=ath79/generic
+        sdk=openwrt-sdk-ath79-generic_gcc-8.4.0_musl.Linux-x86_64
+
+        wget https://downloads.openwrt.org/snapshots/targets/${arch}/${sdk}.tar.xz
+        tar -xf ${sdk}.tar.xz
+        cd ${sdk}/
+
+        cp feeds.conf.default feeds.conf
+        echo "src-git usteer $usteer_git" >> feeds.conf
+
+        ./scripts/feeds update -a
+        ./scripts/feeds install usteer
+
+        make defconfig
+        echo "CONFIG_FEED_usteer=y" >> .config
+
+        make package/usteer/download
+        make package/usteer/prepare
+        make package/usteer/compile
