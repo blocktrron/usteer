@@ -2,7 +2,10 @@ name: C/C++ CI
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - '**'
+      - '!*Doc*'
+      - '!*doc*'
   pull_request:
     branches: [ main ]
 
