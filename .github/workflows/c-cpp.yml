@@ -2,10 +2,9 @@ name: C/C++ CI
 
 on:
   push:
-    branches:
-      - '**'
-      - '!*Doc*'
-      - '!*doc*'
+    branches-ignore:
+      - '*Doc*'
+      - '*doc*'
   pull_request:
     branches: [ main ]
 
@@ -15,7 +14,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      usteer_git: "https://github.com/Keksgesicht/usteer.git"
       arch: "ath79/generic"
       sdk: "openwrt-sdk-ath79-generic_gcc-8.4.0_musl.Linux-x86_64"
 
@@ -23,20 +21,22 @@ jobs:
     - uses: actions/checkout@v2
     - name: compile
       run: |
+        cd ..
         wget "https://downloads.openwrt.org/snapshots/targets/${{ env.arch }}/${{ env.sdk }}.tar.xz"
         tar -xf "${{ env.sdk }}.tar.xz"
         cd "${{ env.sdk }}/"
         cp feeds.conf.default feeds.conf
-        echo "src-git usteer ${{ env.usteer_git }}" >> feeds.conf
-        ./scripts/feeds update -a
+        echo "src-link usteer `realpath $PWD/../usteer`" >> feeds.conf
+        ./scripts/feeds update base packages usteer
         ./scripts/feeds install usteer
         make defconfig
         echo "CONFIG_FEED_usteer=y" >> .config
         make package/usteer/download
         make package/usteer/prepare
         make package/usteer/compile
+        mv bin/ ../usteer/actions-output/
 
     - uses: actions/upload-artifact@v2
       with:
         name: openwrt-packages
-        path: "${{ env.sdk }}/bin/"
+        path: "actions-output/"
