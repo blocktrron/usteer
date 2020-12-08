@@ -529,9 +529,9 @@ usteer_reload_timer(struct uloop_timeout *t)
 		close(remote_fd.fd);
 	}
 
-	fd = usock(USOCK_UDP | USOCK_SERVER | USOCK_NONBLOCK |
-		   USOCK_NUMERIC | USOCK_IPV6ONLY,
-		   "ff02::1", APMGR_PORT_STR);
+	fd = socket(AF_INET6, SOCK_DGRAM, 0);
+	struct sockaddr_in6 address = {AF_INET6, htons(APMGR_PORT)};
+	bind(fd, (struct sockaddr *) &address, sizeof address);
 	if (fd < 0) {
 		perror("usock");
 		return;
@@ -539,6 +539,7 @@ usteer_reload_timer(struct uloop_timeout *t)
 
 	// prepare multicast
 	group.ipv6mr_interface = 0;
+	inet_pton(AF_INET6, "ff02::1", &group.ipv6mr_multiaddr);
 	if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &group, sizeof(group)) < 0) {
 		perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
 	}
