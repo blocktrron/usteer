@@ -305,11 +305,9 @@ interface_recv(struct uloop_fd *u, unsigned int events)
 		.msg_control = cmsg_buf,
 		.msg_controllen = sizeof(cmsg_buf),
 	};
-	struct cmsghdr *cmsg;
 	int len;
 
 	do {
-		struct in6_pktinfo *pkti = NULL;
 		struct interface *iface;
 
 		len = recvmsg(u->fd, &msg, 0);
@@ -326,21 +324,9 @@ interface_recv(struct uloop_fd *u, unsigned int events)
 			}
 		}
 
-		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-			if (cmsg->cmsg_type != IPV6_PKTINFO)
-				continue;
-
-			pkti = (struct in6_pktinfo *) CMSG_DATA(cmsg);
-		}
-
-		if (!pkti) {
-			MSG(DEBUG, "Received packet without ifindex\n");
-			continue;
-		}
-
-		iface = interface_find_by_ifindex(pkti->ipi6_ifindex);
+		iface = interface_find_by_ifindex(sin.sin6_scope_id);
 		if (!iface) {
-			MSG(DEBUG, "Received packet from unconfigured interface %d\n", pkti->ipi6_ifindex);
+			MSG(DEBUG, "Received packet from unconfigured interface %d\n", sin.sin6_scope_id);
 			continue;
 		}
 
@@ -362,11 +348,10 @@ interface_send_msg(struct interface *iface, struct blob_attr *data)
 		.msg_control = cmsg_data,
 		.msg_controllen = CMSG_LEN(sizeof(struct in6_pktinfo)),
 	};
-	struct in6_pktinfo *pkti;
 	struct cmsghdr *cmsg;
 
 	a.sin6_family = AF_INET6;
-	a.sin6_port = htons(16720);
+	a.sin6_port = htons(APMGR_PORT);
 	inet_pton(AF_INET6, "ff02::1", &a.sin6_addr);
 
 	memset(cmsg_data, 0, sizeof(cmsg_data));
@@ -375,8 +360,7 @@ interface_send_msg(struct interface *iface, struct blob_attr *data)
 	cmsg->cmsg_level = IPPROTO_IPV6;
 	cmsg->cmsg_type = IPV6_PKTINFO;
 
-	pkti = (struct in6_pktinfo *) CMSG_DATA(cmsg);
-	pkti->ipi6_ifindex = iface->ifindex;
+	a.sin6_scope_id = iface->ifindex;
 
 	iov.iov_base = data;
 	iov.iov_len = blob_pad_len(data);
