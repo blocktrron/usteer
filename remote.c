@@ -352,7 +352,7 @@ interface_send_msg(struct interface *iface, struct blob_attr *data)
 
 	a.sin6_family = AF_INET6;
 	a.sin6_port = htons(APMGR_PORT);
-	inet_pton(AF_INET6, "ff02::1", &a.sin6_addr);
+	inet_pton(AF_INET6, "ff02::2", &a.sin6_addr);
 
 	memset(cmsg_data, 0, sizeof(cmsg_data));
 	cmsg = CMSG_FIRSTHDR(&m);
@@ -505,6 +505,7 @@ usteer_init_local_id(void)
 static void
 usteer_reload_timer(struct uloop_timeout *t)
 {
+	struct sockaddr_in6 address = {AF_INET6, htons(APMGR_PORT)};
 	struct ipv6_mreq group;
 	int fd;
 
@@ -513,17 +514,17 @@ usteer_reload_timer(struct uloop_timeout *t)
 		close(remote_fd.fd);
 	}
 
-	fd = socket(AF_INET6, SOCK_DGRAM, 0);
-	struct sockaddr_in6 address = {AF_INET6, htons(APMGR_PORT)};
-	bind(fd, (struct sockaddr *) &address, sizeof address);
-	if (fd < 0) {
-		perror("usock");
+	if((fd = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+		perror("socket");
+		return;
+	}
+	if (bind(fd, (struct sockaddr *) &address, sizeof address) < 0) {
+		perror("bind");
 		return;
 	}
 
-	// prepare multicast
 	group.ipv6mr_interface = 0;
-	inet_pton(AF_INET6, "ff02::1", &group.ipv6mr_multiaddr);
+	inet_pton(AF_INET6, "ff02::2", &group.ipv6mr_multiaddr);
 	if (setsockopt(fd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP, &group, sizeof(group)) < 0) {
 		perror("setsockopt(IPV6_ADD_MEMBERSHIP)");
 	}
