@@ -58,6 +58,7 @@ usteer_event_add_node_status(struct usteer_node *node)
 	blobmsg_add_u32(&b, "assoc", node->n_assoc);
 	blobmsg_printf(&b, "bssid", MAC_ADDR_FMT, MAC_ADDR_DATA(node->bssid));
 	blobmsg_add_string(&b, "ssid", node->ssid);
+	blobmsg_add_u32(&b, "frequency", node->freq);
 }
 
 static void
