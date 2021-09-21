@@ -76,6 +76,40 @@ usteer_handle_remove(struct ubus_context *ctx, struct ubus_subscriber *s,
 }
 
 static int
+usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
+{
+	enum {
+		BEACON_REPORT_ADDR,
+		BEACON_REPORT_BSSID,
+		BEACON_REPORT_RCPI,
+		BEACON_REPORT_RSNI,
+		__BEACON_REPORT_MAX
+	};
+	struct blobmsg_policy policy[__BEACON_REPORT_MAX] = {
+		[BEACON_REPORT_ADDR] = { .name = "address", .type = BLOBMSG_TYPE_STRING },
+		[BEACON_REPORT_BSSID] = { .name = "bssid", .type = BLOBMSG_TYPE_STRING },
+		[BEACON_REPORT_RCPI] = { .name = "rcpi", .type = BLOBMSG_TYPE_INT16 },
+		[BEACON_REPORT_RSNI] = { .name = "rsni", .type = BLOBMSG_TYPE_INT16 },
+	};
+
+	struct blob_attr *tb[__BEACON_REPORT_MAX];
+	int i;
+
+	blobmsg_parse(policy, __BEACON_REPORT_MAX, tb, blob_data(msg), blob_len(msg));
+
+	for (i = 0; i < __BEACON_REPORT_MAX; i++) {
+		if (!tb[i])
+			return 1;
+	}
+
+	MSG(FATAL, "Received beacon report sta=%s bssid=%s rcpi=%d rsni=%d\n",
+		blobmsg_get_string(tb[BEACON_REPORT_ADDR]), blobmsg_get_string(tb[BEACON_REPORT_BSSID]),
+		blobmsg_get_u16(tb[BEACON_REPORT_RCPI]), blobmsg_get_u16(tb[BEACON_REPORT_RSNI]));
+
+	return 0;
+}
+
+static int
 usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 		   struct ubus_request_data *req, const char *method,
 		   struct blob_attr *msg)
@@ -104,7 +138,16 @@ usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 	int i;
 	bool ret;
 
+	ln = container_of(obj, struct usteer_local_node, ev.obj);
+	node = &ln->node;
+
 	usteer_update_time();
+
+	/* Special handling for beacon_reports */
+	if (!strcmp(method, "beacon-report")) {
+		usteer_handle_beacon_report(ln, msg);
+		return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(event_types); i++) {
 		if (strcmp(method, event_types[i]) != 0)
@@ -114,8 +157,6 @@ usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 		break;
 	}
 
-	ln = container_of(obj, struct usteer_local_node, ev.obj);
-	node = &ln->node;
 	blobmsg_parse(policy, __EVENT_MAX, tb, blob_data(msg), blob_len(msg));
 	if (!tb[EVENT_ADDR] || !tb[EVENT_FREQ])
 		return UBUS_STATUS_INVALID_ARGUMENT;
