@@ -474,28 +474,16 @@ struct ubus_object usteer_obj = {
 static void
 usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
 {
-	struct blobmsg_policy policy[3] = {
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-	};
-	struct blob_attr *tb[3];
-
-	if (!node->rrm_nr)
-		return;
+	const char *rrm_nr_str;
 
 	if (strcmp(ln->ssid, node->ssid) != 0)
 		return;
 
-	blobmsg_parse_array(policy, ARRAY_SIZE(tb), tb,
-			    blobmsg_data(node->rrm_nr),
-			    blobmsg_data_len(node->rrm_nr));
-	if (!tb[2])
+	rrm_nr_str = usteer_node_get_nr_data(node);
+	if (!rrm_nr_str)
 		return;
 
-	blobmsg_add_field(&b, BLOBMSG_TYPE_STRING, "",
-			  blobmsg_data(tb[2]),
-			  blobmsg_data_len(tb[2]));
+	blobmsg_add_string(&b, "", rrm_nr_str);
 }
 
 int usteer_ubus_notify_client_disassoc(struct sta_info *si)
@@ -529,6 +517,24 @@ int usteer_ubus_trigger_client_scan(struct sta_info *si)
 	blobmsg_add_u32(&b, "duration", 65535);
 	blobmsg_add_u32(&b, "channel", 255);
 	blobmsg_add_u32(&b, "op_class", si->scan_band ? 1 : 12);
+	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
+}
+
+int usteer_ubus_request_beacon_report(struct sta_info *si, struct usteer_node *node)
+{
+	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
+	int op_class = usteer_node_get_op_class(node);
+	int channel = usteer_node_get_channel(node);
+
+	if (op_class == 0 || channel == 0)
+		return -1;
+
+	blob_buf_init(&b, 0);
+	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
+	blobmsg_add_u32(&b, "mode", BEACON_REQ_PASSIVE);
+	blobmsg_add_u32(&b, "duration", 500);
+	blobmsg_add_u32(&b, "channel", (uint32_t) channel);
+	blobmsg_add_u32(&b, "op_class", (uint32_t) op_class);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
 }
 

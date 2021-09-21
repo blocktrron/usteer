@@ -54,6 +54,12 @@ enum usteer_node_type {
 	NODE_TYPE_REMOTE,
 };
 
+enum usteer_beacon_request_mode {
+	BEACON_REQ_PASSIVE = 0,
+	BEACON_REQ_ACTIVE = 1,
+	BEACON_REQ_TABLE = 2
+};
+
 struct sta_info;
 struct usteer_local_node;
 struct usteer_remote_host;
@@ -243,6 +249,7 @@ void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
 int usteer_ubus_trigger_client_scan(struct sta_info *si);
 int usteer_ubus_notify_client_disassoc(struct sta_info *si);
+int usteer_ubus_request_beacon_report(struct sta_info *si, struct usteer_node *node);
 
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);
@@ -255,6 +262,9 @@ static inline const char *usteer_node_name(struct usteer_node *node)
 	return node->avl.key;
 }
 void usteer_node_set_blob(struct blob_attr **dest, struct blob_attr *val);
+const char *usteer_node_get_nr_data(struct usteer_node *node);
+uint8_t usteer_node_get_op_class(struct usteer_node *node);
+uint8_t usteer_node_get_channel(struct usteer_node *node);
 
 bool usteer_check_request(struct sta_info *si, enum usteer_event_type type);
 
