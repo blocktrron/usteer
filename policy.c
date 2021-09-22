@@ -318,6 +318,54 @@ usteer_roam_trigger_sm(struct sta_info *si)
 }
 
 static void
+usteer_local_node_request_neighbor_report(struct usteer_local_node *ln, struct sta_info *si)
+{
+	struct usteer_remote_node *rn;
+	struct usteer_node *node, *n;
+
+	/* Consider a passive report rescan */
+	if (current_time - si->beacon_request >= 60 * 1000) {
+		node = NULL;
+		for_each_local_node(n) {
+			if (strcmp(si->node->ssid, n->ssid) != 0)
+				continue;
+
+			if (n == si->node)
+				continue;
+
+			node = n;
+
+			if (si->last_node_iter < i)
+				break;
+
+			i++;
+		}
+
+		for_each_remote_node(rn) {
+			if (strcmp(si->node->ssid, rn->node.ssid) != 0)
+				continue;
+			node = &rn->node;
+
+			if (si->last_node_iter < i)
+				break;
+
+			i++;
+		}
+
+		if (i > 0 && i == si->last_node_iter) {
+			si->last_node_iter = 0;
+		} else {
+			si->last_node_iter = i;
+		}
+
+		si->beacon_request = current_time;
+
+		if (node)
+			usteer_ubus_request_beacon_report(si, node);
+	}
+}
+
+static void
 usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 {
 	struct sta_info *si;
@@ -337,6 +385,11 @@ usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 		if (!si->connected || si->signal >= min_signal ||
 		    current_time - si->roam_kick < config.roam_trigger_interval) {
 			usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
+
+			if (!si->connected)
+				continue;
+
+			usteer_local_node_request_neighbor_report(ln, si);
 			continue;
 		}
 

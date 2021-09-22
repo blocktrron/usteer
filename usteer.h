@@ -211,6 +211,10 @@ struct sta_info {
 	uint64_t roam_event;
 	uint64_t roam_kick;
 	uint64_t roam_scan_done;
+	uint64_t beacon_request;
+
+	uint8_t last_op_class;
+	uint8_t last_channel;
 
 	int kick_count;
 
