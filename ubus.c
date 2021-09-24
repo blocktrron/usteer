@@ -532,9 +532,10 @@ int usteer_ubus_request_beacon_report(struct sta_info *si, struct usteer_node *n
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_u32(&b, "mode", BEACON_REQ_PASSIVE);
-	blobmsg_add_u32(&b, "duration", 500);
+	blobmsg_add_u32(&b, "duration", 300);
 	blobmsg_add_u32(&b, "channel", (uint32_t) channel);
 	blobmsg_add_u32(&b, "op_class", (uint32_t) op_class);
+	blobmsg_printf(&b, "bssid", MAC_ADDR_FMT, MAC_ADDR_DATA(node->bssid));
 	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
 }
 
