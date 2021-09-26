@@ -322,6 +322,7 @@ usteer_local_node_request_neighbor_report(struct usteer_local_node *ln, struct s
 {
 	struct usteer_remote_node *rn;
 	struct usteer_node *node, *n;
+	int i = 0;
 
 	/* Consider a passive report rescan */
 	if (current_time - si->beacon_request >= 60 * 1000) {

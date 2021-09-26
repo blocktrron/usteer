@@ -220,6 +220,8 @@ struct sta_info {
 
 	uint8_t scan_band : 1;
 	uint8_t connected : 2;
+
+	int last_node_iter;
 };
 
 struct sta {
