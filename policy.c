@@ -239,6 +239,19 @@ is_more_kickable(struct sta_info *si_cur, struct sta_info *si_new)
 	return si_cur->signal > si_new->signal;
 }
 
+static bool usteer_policy_kick_allowed(struct usteer_local_node *ln)
+{
+	return ln->last_policy_kick + (config.roam_kick_delay * 100) < current_time;
+}
+
+static void usteer_local_node_notify_imminent_disassoc(struct sta_info *si)
+{
+	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
+
+	ln->last_policy_kick = current_time;
+	usteer_ubus_notify_client_disassoc(si);
+}
+
 static void
 usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 		      struct uevent *ev)
@@ -283,7 +296,7 @@ usteer_roam_trigger_sm(struct sta_info *si)
 
 		if (config.roam_scan_tries &&
 		    si->roam_tries >= config.roam_scan_tries) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_WAIT_KICK, &ev);
+			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
 			break;
 		}
 
@@ -308,26 +321,15 @@ usteer_roam_trigger_sm(struct sta_info *si)
 		}
 
 		if (find_better_candidate(si, &ev, (1 << UEV_SELECT_REASON_SIGNAL)))
-			usteer_roam_set_state(si, ROAM_TRIGGER_WAIT_KICK, &ev);
+			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
 
 		break;
 
-	case ROAM_TRIGGER_WAIT_KICK:
+	case ROAM_TRIGGER_ANNOUNCE_DISASSOC:
 		if (si->signal > min_signal)
 			break;
-
-		usteer_roam_set_state(si, ROAM_TRIGGER_NOTIFY_KICK, &ev);
-		usteer_ubus_notify_client_disassoc(si);
-		break;
-	case ROAM_TRIGGER_NOTIFY_KICK:
-		if (current_time - si->roam_event < config.roam_kick_delay * 100)
-			break;
-
-		usteer_roam_set_state(si, ROAM_TRIGGER_KICK, &ev);
-		break;
-	case ROAM_TRIGGER_KICK:
-		usteer_ubus_kick_client(si);
-		usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, &ev);
+		
+		usteer_local_node_notify_imminent_disassoc(si);
 		return true;
 	}
 
@@ -347,7 +349,6 @@ usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 	else
 		return;
 
-	usteer_update_time();
 	min_signal = snr_to_signal(&ln->node, min_signal);
 
 	list_for_each_entry(si, &ln->node.sta_info, node_list) {
@@ -356,6 +357,10 @@ usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 			usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
 			continue;
 		}
+
+		/* Client is informed about disassoc */
+		if (si->roam_transition_request)
+			continue;
 
 		/*
 		 * If the state machine kicked a client, other clients should wait
@@ -388,6 +393,10 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 		if (si->signal >= min_signal)
 			continue;
 
+		/* Client is informed about disassoc */
+		if (si->roam_transition_request)
+			continue;
+
 		si->kick_count++;
 
 		ev.type = UEV_SIGNAL_KICK;
@@ -395,7 +404,7 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 		ev.count = si->kick_count;
 		usteer_event(&ev);
 
-		usteer_ubus_kick_client(si);
+		usteer_local_node_notify_imminent_disassoc(si);
 		return;
 	}
 }
@@ -412,8 +421,29 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	};
 	unsigned int min_count = DIV_ROUND_UP(config.load_kick_delay, config.local_sta_update);
 
+	usteer_update_time();
+
+	/* Kick pending clients */
+	list_for_each_entry(si, &ln->node.sta_info, node_list) {
+		if (si->roam_transition_request) {
+			/* Check if disassociation timer expired.
+			 * This is taken care of in hostapd-full by sending a BSS-transition request.
+			 *
+			 * hostapd-basic does not cupport WNM, thus we resemble the disassoc timer.
+			 *
+			 * ToDo: Fetch beacon-interval from hostapd
+			 */
+			if (current_time - si->roam_transition_request < config.roam_kick_delay * 100 * 128 / 125)
+				continue;
+			usteer_ubus_kick_client(si);
+		}
+	}
+
 	usteer_local_node_roam_check(ln, &ev);
 	usteer_local_node_snr_kick(ln);
+
+	if (!usteer_policy_kick_allowed(ln))
+		return;
 
 	if (!config.load_kick_enabled || !config.load_kick_threshold ||
 	    !config.load_kick_delay)
@@ -482,7 +512,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	ev.si_other = candidate;
 	ev.count = kick1->kick_count;
 
-	usteer_ubus_kick_client(kick1);
+	usteer_local_node_notify_imminent_disassoc(kick1);
 
 out:
 	usteer_event(&ev);

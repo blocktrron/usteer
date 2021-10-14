@@ -536,6 +536,14 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si)
 {
 	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
 
+	/* Check if we've already sent a transition notification with pending disassoc.
+	 * Otherwise, the disassoc timer is restartet.
+	 */
+	if (si->roam_transition_request)
+		return 0;
+
+	si->roam_transition_request = current_time;
+
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_u32(&b, "duration", config.roam_kick_delay);
@@ -573,6 +581,7 @@ void usteer_ubus_kick_client(struct sta_info *si)
 	blobmsg_add_u8(&b, "deauth", 1);
 	ubus_invoke(ubus_ctx, ln->obj_id, "del_client", b.head, NULL, 0, 100);
 	si->connected = STA_NOT_CONNECTED;
+	si->roam_transition_request = 0;
 	si->roam_kick = current_time;
 }
 
