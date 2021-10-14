@@ -204,9 +204,7 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_IDLE,
 	ROAM_TRIGGER_SCAN,
 	ROAM_TRIGGER_SCAN_DONE,
-	ROAM_TRIGGER_WAIT_KICK,
-	ROAM_TRIGGER_NOTIFY_KICK,
-	ROAM_TRIGGER_KICK,
+	ROAM_TRIGGER_ANNOUNCE_DISASSOC,
 };
 
 struct sta_info {
@@ -227,6 +225,7 @@ struct sta_info {
 	enum roam_trigger_state roam_state;
 	uint8_t roam_tries;
 	uint64_t roam_event;
+	uint64_t roam_transition_request;
 	uint64_t roam_kick;
 	uint64_t roam_scan_done;
 

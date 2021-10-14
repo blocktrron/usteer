@@ -50,6 +50,7 @@ struct usteer_local_node {
 	int load_thr_count;
 
 	uint64_t time, time_busy;
+	uint64_t last_policy_kick;
 
 	struct kvlist node_info;
 
