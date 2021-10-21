@@ -98,6 +98,7 @@ usteer_ubus_get_client_info(struct ubus_context *ctx, struct ubus_object *obj,
 		return UBUS_STATUS_NOT_FOUND;
 
 	blob_buf_init(&b, 0);
+	blobmsg_add_u16(&b, "rrm", sta->rrm);
 	blobmsg_add_u8(&b, "2ghz", sta->seen_2ghz);
 	blobmsg_add_u8(&b, "5ghz", sta->seen_5ghz);
 	_n = blobmsg_open_table(&b, "nodes");
