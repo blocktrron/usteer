@@ -220,6 +220,10 @@ struct sta_info {
 	uint64_t last_connected;
 	int signal;
 
+	uint8_t reported_rcpi;
+	uint8_t reported_rsni;
+	uint64_t last_reported;
+
 	enum roam_trigger_state roam_state;
 	uint8_t roam_tries;
 	uint64_t roam_event;
@@ -270,7 +274,13 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si);
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);
 
+struct usteer_remote_node *usteer_remote_node_get(uint8_t *bssid);
+struct usteer_local_node *usteer_local_node_get(uint8_t *bssid);
+struct usteer_node *usteer_node_get(uint8_t *bssid);
+
 bool usteer_sta_supports_beacon_measurement_mode(struct sta *sta, enum usteer_beacon_measurement_mode mode);
+
+bool usteer_sta_info_last_seen_timed_out(struct sta_info *si);
 
 void usteer_sta_info_update_timeout(struct sta_info *si, int timeout);
 void usteer_sta_info_update(struct sta_info *si, int signal, bool avg);

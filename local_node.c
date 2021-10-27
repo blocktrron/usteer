@@ -76,6 +76,77 @@ usteer_handle_remove(struct ubus_context *ctx, struct ubus_subscriber *s,
 }
 
 static int
+usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
+{
+	enum {
+		BEACON_REP_STA_ADDR,
+		BEACON_REP_AP_ADDR,
+		BEACON_REP_RCPI,
+		BEACON_REP_RSNI,
+		__BEACON_REP_MAX
+	};
+	struct blobmsg_policy policy[__BEACON_REP_MAX] = {
+		[BEACON_REP_STA_ADDR] = { .name = "address", .type = BLOBMSG_TYPE_STRING },
+		[BEACON_REP_AP_ADDR] = { .name = "bssid", .type = BLOBMSG_TYPE_STRING },
+		[BEACON_REP_RCPI] = { .name = "rcpi", .type = BLOBMSG_TYPE_INT16 },
+		[BEACON_REP_RSNI] = { .name = "rsni", .type = BLOBMSG_TYPE_INT16 },
+	};
+	struct blob_attr *tb[__BEACON_REP_MAX];
+
+	struct usteer_node *n;
+	struct sta_info *si;
+	bool create;
+
+	struct sta *sta;
+	uint8_t bssid[6], sta_addr[6];
+	uint8_t *tmp;
+	uint16_t rcpi;
+	uint16_t rsni;
+	int16_t rsni_dbm;
+
+	blobmsg_parse(policy, __BEACON_REP_MAX, tb, blob_data(msg), blob_len(msg));
+
+	if (!tb[BEACON_REP_STA_ADDR] || !tb[BEACON_REP_AP_ADDR] || !tb[BEACON_REP_RCPI] || !tb[BEACON_REP_RSNI])
+		return 0;
+
+	tmp = (uint8_t *) ether_aton(blobmsg_get_string(tb[BEACON_REP_AP_ADDR]));
+	if (!tmp)
+		return 0;
+	memcpy(bssid, tmp, 6);
+	
+	tmp = (uint8_t *) ether_aton(blobmsg_get_string(tb[BEACON_REP_STA_ADDR]));
+	if (!tmp)
+		return 0;
+	memcpy(sta_addr, tmp, 6);
+
+	sta = usteer_sta_get(sta_addr, false);
+	if (!sta)
+		return 0;
+
+	n = usteer_node_get(bssid);
+	if (!n)
+		return 0;
+
+	si = usteer_sta_info_get(sta, n, &create);
+	if (!si)
+		return 0;
+
+	si->last_reported = current_time;
+
+	rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
+	rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
+	rsni_dbm = (rsni * 2) - 10;
+
+	si->reported_rcpi = rcpi;
+	si->reported_rsni = rsni;
+
+	usteer_sta_info_update_timeout(si, config.local_sta_timeout);
+
+	MSG(INFO, "Received beacon-report sta=" MAC_ADDR_FMT " bssid=" MAC_ADDR_FMT " rcpi=%u rsni=%u rsni_dbm=", MAC_ADDR_DATA(sta_addr), MAC_ADDR_DATA(bssid), rcpi, rsni, rsni_dbm);
+	return 0;
+}
+
+static int
 usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 		   struct ubus_request_data *req, const char *method,
 		   struct blob_attr *msg)
@@ -106,6 +177,12 @@ usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 
 	usteer_update_time();
 
+	ln = container_of(obj, struct usteer_local_node, ev.obj);
+
+	if (!strcmp(method, "beacon-report")) {
+		return usteer_handle_beacon_report(ln, msg);
+	}
+
 	for (i = 0; i < ARRAY_SIZE(event_types); i++) {
 		if (strcmp(method, event_types[i]) != 0)
 			continue;
@@ -114,7 +191,6 @@ usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 		break;
 	}
 
-	ln = container_of(obj, struct usteer_local_node, ev.obj);
 	node = &ln->node;
 	blobmsg_parse(policy, __EVENT_MAX, tb, blob_data(msg), blob_len(msg));
 	if (!tb[EVENT_ADDR] || !tb[EVENT_FREQ])
@@ -575,6 +651,19 @@ static void
 node_list_cb(struct ubus_context *ctx, struct ubus_object_data *obj, void *priv)
 {
 	usteer_register_node(ctx, obj->path, obj->id);
+}
+
+struct usteer_local_node *usteer_local_node_get(uint8_t *bssid) {
+	struct usteer_local_node *ln;
+	struct usteer_node *n;
+
+	for_each_local_node(n) {
+		ln = container_of(n, struct usteer_local_node, node);
+		if (!memcmp(n->bssid, bssid, 6))
+			return ln;
+	}
+
+	return NULL;
 }
 
 void config_set_node_up_script(struct blob_attr *data)

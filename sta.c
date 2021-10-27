@@ -160,6 +160,12 @@ usteer_sta_info_update(struct sta_info *si, int signal, bool avg)
 }
 
 bool
+usteer_sta_info_last_seen_timed_out(struct sta_info *si)
+{
+	return current_time - si->seen > config.seen_policy_timeout;
+}
+
+bool
 usteer_handle_sta_event(struct usteer_node *node, const uint8_t *addr,
 		       enum usteer_event_type type, int freq, int signal)
 {

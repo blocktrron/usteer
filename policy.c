@@ -48,6 +48,9 @@ better_signal_strength(struct sta_info *si_cur, struct sta_info *si_new)
 	if (!config.signal_diff_threshold)
 		return false;
 
+	if (usteer_sta_info_last_seen_timed_out(si_new))
+		return false;
+
 	return is_better;
 }
 
@@ -105,7 +108,7 @@ find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t requi
 		if (si == si_ref)
 			continue;
 
-		if (current_time - si->seen > config.seen_policy_timeout)
+		if (usteer_sta_info_last_seen_timed_out(si))
 			continue;
 
 		if (strcmp(si->node->ssid, si_ref->node->ssid) != 0)

@@ -101,6 +101,32 @@ usteer_node_better_neighbor(struct usteer_node *node, struct usteer_node *ref)
 	return node;
 }
 
+struct usteer_remote_node *usteer_remote_node_get(uint8_t *bssid) {
+	struct usteer_remote_node *rn;
+
+	for_each_remote_node(rn) {
+		if (!memcmp(rn->node.bssid, bssid, 6))
+			return rn;
+	}
+
+	return NULL;
+}
+
+struct usteer_node *usteer_node_get(uint8_t *bssid) {
+	struct usteer_remote_node *rn;
+	struct usteer_local_node *ln;
+
+	rn = usteer_remote_node_get(bssid);
+	if (rn)
+		return &rn->node;
+
+	ln = usteer_local_node_get(bssid);
+	if (ln)
+		return &ln->node;
+
+	return NULL;
+}
+
 struct usteer_node *
 usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last)
 {

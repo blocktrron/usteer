@@ -542,6 +542,9 @@ static void usteer_send_sta_info(struct sta_info *sta)
 	int last_connected = !!sta->connected ? 0 : current_time - sta->last_connected;
 	void *c;
 
+	if (usteer_sta_info_last_seen_timed_out(sta))
+		return;
+
 	c = blob_nest_start(&buf, 0);
 	blob_put(&buf, APMSG_STA_ADDR, sta->sta->addr, 6);
 	blob_put_int8(&buf, APMSG_STA_CONNECTED, !!sta->connected);
