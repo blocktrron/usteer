@@ -31,6 +31,17 @@
 static struct blob_buf b;
 static KVLIST(host_info, kvlist_blob_len);
 
+static void usteer_ubus_client_add_report_data(struct sta_info *si)
+{
+	void *_cur_n;
+
+	_cur_n = blobmsg_open_table(&b, "beacon_report");
+	blobmsg_add_u32(&b, "rcpi", si->beacon_report.rcpi);
+	blobmsg_add_u32(&b, "rsni", si->beacon_report.rsni);
+	blobmsg_add_u64(&b, "timestamp", si->beacon_report.timestamp);
+	blobmsg_close_table(&b, _cur_n);
+}
+
 static int
 usteer_ubus_get_clients(struct ubus_context *ctx, struct ubus_object *obj,
 		       struct ubus_request_data *req, const char *method,
@@ -49,6 +60,7 @@ usteer_ubus_get_clients(struct ubus_context *ctx, struct ubus_object *obj,
 			_cur_n = blobmsg_open_table(&b, usteer_node_name(si->node));
 			blobmsg_add_u8(&b, "connected", si->connected);
 			blobmsg_add_u32(&b, "signal", si->signal);
+			usteer_ubus_client_add_report_data(si);
 			blobmsg_close_table(&b, _cur_n);
 		}
 		blobmsg_close_table(&b, _s);
@@ -105,6 +117,7 @@ usteer_ubus_get_client_info(struct ubus_context *ctx, struct ubus_object *obj,
 		_cur_n = blobmsg_open_table(&b, usteer_node_name(si->node));
 		blobmsg_add_u8(&b, "connected", si->connected);
 		blobmsg_add_u32(&b, "signal", si->signal);
+		usteer_ubus_client_add_report_data(si);
 		_s = blobmsg_open_table(&b, "stats");
 		for (i = 0; i < __EVENT_TYPE_MAX; i++)
 			usteer_ubus_add_stats(&si->stats[EVENT_TYPE_PROBE], event_types[i]);
