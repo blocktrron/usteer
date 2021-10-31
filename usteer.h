@@ -202,7 +202,6 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_IDLE,
 	ROAM_TRIGGER_SCAN,
 	ROAM_TRIGGER_SCAN_DONE,
-	ROAM_TRIGGER_ANNOUNCE_DISASSOC,
 };
 
 struct sta_info {
@@ -269,7 +268,7 @@ void usteer_local_node_kick(struct usteer_local_node *ln);
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
 int usteer_ubus_trigger_client_scan(struct sta_info *si);
-int usteer_ubus_notify_client_disassoc(struct sta_info *si);
+int usteer_ubus_notify_client_disassoc(struct sta_info *si, struct usteer_node *preferred);
 
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);

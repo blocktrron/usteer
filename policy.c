@@ -247,12 +247,12 @@ static bool usteer_policy_kick_allowed(struct usteer_local_node *ln)
 	return ln->last_policy_kick + (config.roam_kick_delay * 100) < current_time;
 }
 
-static void usteer_local_node_notify_imminent_disassoc(struct sta_info *si)
+static void usteer_local_node_notify_imminent_disassoc(struct sta_info *si, struct usteer_node *preferred)
 {
 	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
 
 	ln->last_policy_kick = current_time;
-	usteer_ubus_notify_client_disassoc(si);
+	usteer_ubus_notify_client_disassoc(si, preferred);
 }
 
 static void
@@ -279,12 +279,10 @@ usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 static bool
 usteer_roam_trigger_sm(struct sta_info *si)
 {
+	struct sta_info *better_candidate;
 	struct uevent ev = {
 		.si_cur = si,
 	};
-	int min_signal;
-
-	min_signal = snr_to_signal(si->node, config.roam_trigger_snr);
 
 	switch (si->roam_state) {
 	case ROAM_TRIGGER_SCAN:
@@ -299,8 +297,8 @@ usteer_roam_trigger_sm(struct sta_info *si)
 
 		if (config.roam_scan_tries &&
 		    si->roam_tries >= config.roam_scan_tries) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
-			break;
+			usteer_local_node_notify_imminent_disassoc(si, NULL);
+			return true;
 		}
 
 		usteer_ubus_trigger_client_scan(si);
@@ -323,17 +321,14 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		if (find_better_candidate(si, &ev, (1 << UEV_SELECT_REASON_SIGNAL)))
-			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
+		better_candidate = find_better_candidate(si, &ev, (1 << UEV_SELECT_REASON_SIGNAL));
+
+		if (better_candidate) {
+			usteer_local_node_notify_imminent_disassoc(si, better_candidate->node);
+			return true;
+		}
 
 		break;
-
-	case ROAM_TRIGGER_ANNOUNCE_DISASSOC:
-		if (si->signal > min_signal)
-			break;
-		
-		usteer_local_node_notify_imminent_disassoc(si);
-		return true;
 	}
 
 	return false;
@@ -407,7 +402,7 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 		ev.count = si->kick_count;
 		usteer_event(&ev);
 
-		usteer_local_node_notify_imminent_disassoc(si);
+		usteer_local_node_notify_imminent_disassoc(si, NULL);
 		return;
 	}
 }
@@ -515,7 +510,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	ev.si_other = candidate;
 	ev.count = kick1->kick_count;
 
-	usteer_local_node_notify_imminent_disassoc(kick1);
+	usteer_local_node_notify_imminent_disassoc(kick1, candidate->node);
 
 out:
 	usteer_event(&ev);
