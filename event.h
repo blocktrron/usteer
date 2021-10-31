@@ -14,6 +14,7 @@ enum uevent_type {
 	UEV_LOAD_KICK_NO_CLIENT,
 	UEV_LOAD_KICK_CLIENT,
 	UEV_SIGNAL_KICK,
+	UEV_SOFT_ROAM,
 };
 
 enum uevent_reason {

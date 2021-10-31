@@ -63,6 +63,11 @@ struct usteer_local_node {
 		bool req_pending;
 		bool status_complete;
 	} netifd;
+
+	struct {
+		uint8_t last_op_class;
+		uint64_t last_scan;
+	} soft_roam;
 };
 
 struct interface;

@@ -127,6 +127,51 @@ struct usteer_node *usteer_node_get(uint8_t *bssid) {
 	return NULL;
 }
 
+const char *
+usteer_node_get_rrm_nr(struct usteer_node *node)
+{
+	struct blobmsg_policy policy[3] = {
+		{ .type = BLOBMSG_TYPE_STRING },
+		{ .type = BLOBMSG_TYPE_STRING },
+		{ .type = BLOBMSG_TYPE_STRING },
+	};
+	struct blob_attr *tb[3];
+
+	if (!node->rrm_nr)
+		return NULL;
+
+	blobmsg_parse_array(policy, ARRAY_SIZE(tb), tb,
+			    blobmsg_data(node->rrm_nr),
+			    blobmsg_data_len(node->rrm_nr));
+	if (!tb[2])
+		return NULL;
+
+	return blobmsg_get_string(tb[2]);
+}
+
+static uint8_t usteer_node_read_rrm_octet(struct usteer_node *node, int octet)
+{
+	const char *rrm_nr = usteer_node_get_rrm_nr(node);
+	char tmp[3] = {};
+
+	if (!rrm_nr || strlen(rrm_nr) < (octet * 2) + 2)
+		return 0;
+
+	tmp[0] = rrm_nr[(octet * 2)];
+	tmp[1] = rrm_nr[(octet * 2) + 1];
+	return (uint8_t) strtoul(tmp, NULL, 16);
+}
+
+uint8_t usteer_node_get_op_class(struct usteer_node *node)
+{
+	return usteer_node_read_rrm_octet(node, 10);
+}
+
+uint8_t usteer_node_get_channel(struct usteer_node *node)
+{
+	return usteer_node_read_rrm_octet(node, 11);
+}
+
 struct usteer_node *
 usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last)
 {

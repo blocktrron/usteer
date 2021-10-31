@@ -160,6 +160,7 @@ struct cfg_item {
 	_cfg(BOOL, assoc_steering), \
 	_cfg(I32, min_connect_snr), \
 	_cfg(I32, min_snr), \
+	_cfg(U32, soft_roam_interval), \
 	_cfg(U32, roam_process_timeout), \
 	_cfg(I32, roam_scan_snr), \
 	_cfg(U32, roam_scan_tries), \
@@ -482,70 +483,80 @@ struct ubus_object usteer_obj = {
 static bool
 usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
 {
-	struct blobmsg_policy policy[3] = {
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-	};
-	struct blob_attr *tb[3];
-
-	if (!node->rrm_nr)
-		return false;
+	const char *rrm_nr;
 
 	if (strcmp(ln->ssid, node->ssid) != 0)
 		return false;
 
-	blobmsg_parse_array(policy, ARRAY_SIZE(tb), tb,
-			    blobmsg_data(node->rrm_nr),
-			    blobmsg_data_len(node->rrm_nr));
-	if (!tb[2])
+	rrm_nr = usteer_node_get_rrm_nr(node);
+	if (!rrm_nr)
 		return false;
 
-	blobmsg_add_field(&b, BLOBMSG_TYPE_STRING, "",
-			  blobmsg_data(tb[2]),
-			  blobmsg_data_len(tb[2]));
+	blobmsg_add_string(&b, "", rrm_nr);
 	
 	return true;
 }
 
+static bool
+usteer_ubus_bss_tr_node_in_preferred(struct usteer_node **preferred,
+				     int preferred_count,
+				     struct usteer_node *node)
+{
+	int i = 0;
+
+	for (i = 0; i < preferred_count; i++) {
+		if (preferred[i] == node)
+			return true;
+	}
+
+	return false;
+}
+
 static void
-usteer_ubus_disassoc_add_neighbors(struct sta_info *si, struct usteer_node *preferred)
+usteer_ubus_bss_tr_add_neighbors(struct sta_info *si, struct usteer_node **preferred,
+				 int preferred_count,
+				 bool preferred_exclusive)
 {
 	struct usteer_node *node, *last_remote_neighbor = NULL;
 	int i = 0;
+	int j = 0;
 	void *c;
 
 	c = blobmsg_open_array(&b, "neighbors");
-	if (preferred) {
-		usteer_add_nr_entry(si->node, preferred);
+
+	for (j = 0; j < preferred_count && i < config.max_neighbor_reports; j++) {
+		usteer_add_nr_entry(si->node, preferred[j]);
 		i++;
 	}
 
-	for_each_local_node(node) {
-		if (i >= config.max_neighbor_reports)
-			break;
+	if (!preferred_exclusive) {
+		for_each_local_node(node) {
+			if (i >= config.max_neighbor_reports)
+				break;
 
-		if (node == preferred)
-			continue;
+			if (usteer_ubus_bss_tr_node_in_preferred(preferred, preferred_count, node))
+				continue;
 
-		if (usteer_add_nr_entry(si->node, node))
-			i++;
-	}
-
-	while (i < config.max_neighbor_reports) {
-		node = usteer_node_get_next_neighbor(si->node, last_remote_neighbor);
-		if (!node) {
-			/* No more nodes available */
-			break;
+			if (usteer_add_nr_entry(si->node, node))
+				i++;
 		}
 
-		if (node == preferred)
-			continue;
+		while (i < config.max_neighbor_reports) {
+			node = usteer_node_get_next_neighbor(si->node, last_remote_neighbor);
+			if (!node) {
+				/* No more nodes available */
+				break;
+			}
 
-		last_remote_neighbor = node;
-		if (usteer_add_nr_entry(si->node, node))
-			i++;
+			if (usteer_ubus_bss_tr_node_in_preferred(preferred, preferred_count, node))
+				continue;
+
+			last_remote_neighbor = node;
+			if (usteer_add_nr_entry(si->node, node))
+				i++;
+		}
 	}
+
 	blobmsg_close_array(&b, c);
 }
 
@@ -564,8 +575,46 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si, struct usteer_node *
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_u32(&b, "duration", config.roam_kick_delay);
-	usteer_ubus_disassoc_add_neighbors(si, preferred);
+	usteer_ubus_bss_tr_add_neighbors(si, &preferred, preferred ? 1 : 0, false);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "wnm_disassoc_imminent", b.head, NULL, 0, 100);
+}
+
+int usteer_ubus_bss_transition_request(struct sta_info *si,
+				       bool disassoc_imminent,
+				       bool abridged,
+				       uint8_t validity_period,
+				       struct usteer_node **destinations,
+				       int destination_count)
+{
+	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
+
+	blob_buf_init(&b, 0);
+	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
+	blobmsg_add_u8(&b, "disassociation_imminent", disassoc_imminent);
+	blobmsg_add_u8(&b, "abridged", abridged);
+	blobmsg_add_u8(&b, "validity_period", validity_period);
+	usteer_ubus_bss_tr_add_neighbors(si, destinations, destination_count, true);
+	return ubus_invoke(ubus_ctx, ln->obj_id, "bss_transition_request", b.head, NULL, 0, 100);
+}
+
+int usteer_ubus_send_beacon_request(struct sta_info *si,
+				    enum usteer_beacon_measurement_mode measurement_mode,
+				    int channel,
+				    int op_class)
+{
+	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
+
+	if (!usteer_sta_supports_beacon_measurement_mode(si->sta, measurement_mode)) {
+		return 0;
+	}
+
+	blob_buf_init(&b, 0);
+	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
+	blobmsg_add_u32(&b, "mode", measurement_mode);
+	blobmsg_add_u32(&b, "duration", config.roam_scan_interval / 100);
+	blobmsg_add_u32(&b, "channel", channel);
+	blobmsg_add_u32(&b, "op_class", op_class);
+	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
 }
 
 int usteer_ubus_trigger_client_scan(struct sta_info *si)

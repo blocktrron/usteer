@@ -57,6 +57,8 @@ config usteer
 	# as a roam
 	#option roam_process_timeout 5000
 
+	#option soft_roam_interval 300000
+
 	# Minimum signal-to-noise ratio or signal level (dBm) before attempting to trigger
 	# client scans for roaming
 	#option roam_scan_snr 0

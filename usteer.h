@@ -166,6 +166,8 @@ struct usteer_config {
 	int32_t min_connect_snr;
 	uint32_t signal_diff_threshold;
 
+	uint32_t soft_roam_interval;
+
 	int32_t roam_scan_snr;
 	uint32_t roam_process_timeout;
 
@@ -267,8 +269,18 @@ void usteer_local_node_kick(struct usteer_local_node *ln);
 
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
+int usteer_ubus_send_beacon_request(struct sta_info *si,
+				    enum usteer_beacon_measurement_mode measurement_mode,
+				    int channel,
+				    int op_class);
 int usteer_ubus_trigger_client_scan(struct sta_info *si);
 int usteer_ubus_notify_client_disassoc(struct sta_info *si, struct usteer_node *preferred);
+int usteer_ubus_bss_transition_request(struct sta_info *si,
+				       bool disassoc_imminent,
+				       bool abridged,
+				       uint8_t validity_period,
+				       struct usteer_node **destinations,
+				       int destination_count);
 
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);
@@ -280,6 +292,7 @@ struct usteer_node *usteer_node_get(uint8_t *bssid);
 bool usteer_sta_supports_beacon_measurement_mode(struct sta *sta, enum usteer_beacon_measurement_mode mode);
 
 bool usteer_sta_info_last_seen_timed_out(struct sta_info *si);
+bool usteer_sta_info_last_reported_timed_out(struct sta_info *si);
 
 void usteer_sta_info_update_timeout(struct sta_info *si, int timeout);
 void usteer_sta_info_update(struct sta_info *si, int signal, bool avg);
@@ -289,6 +302,9 @@ static inline const char *usteer_node_name(struct usteer_node *node)
 	return node->avl.key;
 }
 void usteer_node_set_blob(struct blob_attr **dest, struct blob_attr *val);
+const char *usteer_node_get_rrm_nr(struct usteer_node *node);
+uint8_t usteer_node_get_op_class(struct usteer_node *node);
+uint8_t usteer_node_get_channel(struct usteer_node *node);
 
 struct usteer_node *usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last);
 bool usteer_check_request(struct sta_info *si, enum usteer_event_type type);

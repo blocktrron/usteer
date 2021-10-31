@@ -35,7 +35,7 @@ static const char * const uev_name[] = {
 	[UEV_LOAD_KICK_NO_CLIENT] = "load_kick_no_client",
 	[UEV_LOAD_KICK_CLIENT] = "load_kick_client",
 	[UEV_SIGNAL_KICK] = "signal_kick",
-
+	[UEV_SOFT_ROAM] = "soft_roam",
 };
 static const char * const uev_reason[] = {
 	[UEV_REASON_NONE] = "none",
@@ -222,6 +222,7 @@ void config_set_event_log_types(struct blob_attr *attr)
 			[MSG_INFO] =
 				(1 << UEV_LOAD_KICK_CLIENT) |
 				(1 << UEV_SIGNAL_KICK) |
+				(1 << UEV_SOFT_ROAM) |
 				(1 << UEV_AUTH_REQ_DENY) |
 				(1 << UEV_ASSOC_REQ_DENY),
 			[MSG_VERBOSE] =

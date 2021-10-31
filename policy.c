@@ -55,6 +55,21 @@ better_signal_strength(struct sta_info *si_cur, struct sta_info *si_new)
 }
 
 static bool
+better_reported_signal_strength(struct sta_info *si_cur, struct sta_info *si_new)
+{
+	const bool is_better = si_new->reported_rcpi - si_cur->reported_rcpi
+				> (int) config.signal_diff_threshold * 2;
+
+	if (!config.signal_diff_threshold)
+		return false;
+
+	if (usteer_sta_info_last_reported_timed_out(si_cur) || usteer_sta_info_last_reported_timed_out(si_new))
+		return false;
+
+	return is_better;
+}
+
+static bool
 below_load_threshold(struct sta_info *si)
 {
 	return si->node->n_assoc >= config.load_kick_min_clients &&
@@ -83,11 +98,14 @@ is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
 	if (!below_max_assoc(si_new))
 		return 0;
 
+	if (strcmp(si_cur->node->ssid, si_new->node->ssid))
+		return 0;
+
 	if (below_assoc_threshold(si_cur, si_new) &&
 	    !below_assoc_threshold(si_new, si_cur))
 		reasons |= (1 << UEV_SELECT_REASON_NUM_ASSOC);
 
-	if (better_signal_strength(si_cur, si_new))
+	if (better_signal_strength(si_cur, si_new) || better_reported_signal_strength(si_cur, si_new))
 		reasons |= (1 << UEV_SELECT_REASON_SIGNAL);
 
 	if (has_better_load(si_cur, si_new) &&
@@ -109,9 +127,6 @@ find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t requi
 			continue;
 
 		if (usteer_sta_info_last_seen_timed_out(si))
-			continue;
-
-		if (strcmp(si->node->ssid, si_ref->node->ssid) != 0)
 			continue;
 
 		reasons = is_better_candidate(si_ref, si);
@@ -351,7 +366,7 @@ usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 
 	list_for_each_entry(si, &ln->node.sta_info, node_list) {
 		if (si->connected != STA_CONNECTED || si->signal >= min_signal ||
-		    current_time - si->roam_kick < config.roam_trigger_interval) {
+		    current_time - si->roam_transition_request < config.roam_trigger_interval) {
 			usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
 			continue;
 		}
@@ -407,6 +422,128 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 	}
 }
 
+static uint8_t
+usteer_scan_next_op_class(struct usteer_local_node *current_ln, uint8_t current_op_class) {
+	struct usteer_node *n;
+	uint8_t next_op_class = 0;
+	uint8_t candidate_op_class = 0;
+
+	for_each_local_node(n) {
+		if (!memcmp(n->bssid, current_ln->node.bssid, 6))
+			continue;
+
+		candidate_op_class = usteer_node_get_op_class(n);
+		if (candidate_op_class == 0 || candidate_op_class <= current_op_class)
+			continue;
+
+		if (candidate_op_class > current_op_class && (!next_op_class || next_op_class > candidate_op_class))
+			next_op_class = candidate_op_class;
+	}
+
+	return next_op_class;
+}
+
+static void
+usteer_local_node_soft_roam(struct usteer_local_node *ln)
+{
+	/* Soft roaming is for steering client to a 5GHz node in
+	 * case it is currently connected to a 2.4 GHz node.
+	 *
+	 * In constrast to the roam_sm, soft roaming is triggered
+	 * periodically. A client is exempt, in case the roam_sm is
+	 * already triggered for this specific client.
+	 */
+	uint8_t op_class;
+	struct sta_info *si, *candidate_si;
+	struct usteer_node *candidate_node;
+	/*
+	struct uevent ev = {
+		.node_local = &ln->node,
+		.type = UEV_SOFT_ROAM,
+	};*/
+
+	/* Soft roaming is only for 2.4 GHz nodes */
+	if (ln->node.freq > 4000)
+		return;
+
+	if (!config.soft_roam_interval)
+		return;
+
+	/* Check if we are due for a cycle */
+	if (current_time - ln->soft_roam.last_scan < config.soft_roam_interval && !ln->soft_roam.last_op_class)
+		return;
+
+	op_class = usteer_scan_next_op_class(ln, ln->soft_roam.last_op_class);
+	ln->soft_roam.last_op_class = op_class;
+
+	if (!op_class) {
+		/* All OP-classes scanned. Evaluate reported signal. */
+
+		list_for_each_entry(si, &ln->node.sta_info, node_list) {
+			if (si->roam_transition_request)
+				continue;
+
+			if (si->roam_state != ROAM_TRIGGER_IDLE)
+				continue;
+
+			if (si->connected != STA_CONNECTED)
+				continue;
+
+			for_each_local_node(candidate_node) {
+				if (candidate_node == &ln->node)
+					continue;
+
+				if (candidate_node->freq < 4000)
+					continue;
+
+				candidate_si = usteer_sta_info_get(si->sta, candidate_node, NULL);
+				if (!candidate_si)
+					continue;
+
+				/* Only evaluate results from this soft-roam interval */
+				if (current_time - si->last_reported > config.soft_roam_interval)
+					continue;
+
+				MSG(INFO, "Check roam for " MAC_ADDR_FMT " to " MAC_ADDR_FMT "\n", MAC_ADDR_DATA(candidate_node->bssid), MAC_ADDR_DATA(candidate_si->sta->addr));
+
+				/* Check if current node is evaluate better than candidate */
+				if (is_better_candidate(candidate_si, si))
+					continue;
+
+				/* And vice versa */
+				if (!is_better_candidate(si, candidate_si))
+					continue;
+
+/*
+				ev.threshold.cur = get_target_signal(si, candidate_si);
+				ev.threshold.ref = config.signal_diff_threshold;
+*/
+				/* Roam */
+				MSG(INFO, "Trigger roam for " MAC_ADDR_FMT " to " MAC_ADDR_FMT "\n", MAC_ADDR_DATA(candidate_node->bssid), MAC_ADDR_DATA(candidate_si->sta->addr));
+				usteer_ubus_bss_transition_request(si, false, false, config.roam_scan_interval / 100, &candidate_node, 1);
+			}
+		}
+		return;
+	}
+
+	/* Trigger scan */
+	MSG(INFO, "Trigger Scan for OP-Class %d on %s (" MAC_ADDR_FMT ")\n", op_class, ln->node.ssid, MAC_ADDR_DATA(ln->node.bssid));
+	list_for_each_entry(si, &ln->node.sta_info, node_list) {
+		if (si->connected != STA_CONNECTED)
+			continue;
+
+		if (si->roam_transition_request)
+			continue;
+
+		if (si->roam_state != ROAM_TRIGGER_IDLE)
+			continue;
+
+		usteer_ubus_send_beacon_request(si, BEACON_MEASUREMENT_PASSIVE, 0, op_class);
+	}
+
+	ln->soft_roam.last_scan = current_time;
+}
+
 void
 usteer_local_node_kick(struct usteer_local_node *ln)
 {
@@ -439,6 +576,8 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 
 	usteer_local_node_roam_check(ln, &ev);
 	usteer_local_node_snr_kick(ln);
+
+	usteer_local_node_soft_roam(ln);
 
 	if (!usteer_policy_kick_allowed(ln))
 		return;

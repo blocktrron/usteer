@@ -137,6 +137,9 @@ usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
 	rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
 	rsni_dbm = (rsni * 2) - 10;
 
+	if (rcpi < 1 || rcpi > 219)
+		return false;
+
 	si->reported_rcpi = rcpi;
 	si->reported_rsni = rsni;
 
