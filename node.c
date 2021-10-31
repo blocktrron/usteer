@@ -162,6 +162,9 @@ usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_no
 			continue;
 		}
 
+		if (n1->max_assoc && n1->n_assoc >= n1->max_assoc)
+			continue;
+
 		next = n1;		
 	}
 
