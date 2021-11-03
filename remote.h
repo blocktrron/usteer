@@ -27,6 +27,7 @@ enum {
 	APMSG_SEQ,
 	APMSG_NODES,
 	APMSG_HOST_INFO,
+	APMSG_HOSTNAME,
 	__APMSG_MAX
 };
 
@@ -35,6 +36,7 @@ struct apmsg {
 	uint32_t seq;
 	struct blob_attr *nodes;
 	struct blob_attr *host_info;
+	const char *hostname;
 };
 
 enum {
