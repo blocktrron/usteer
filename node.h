@@ -78,7 +78,6 @@ struct usteer_remote_host {
 	struct list_head nodes;
 	struct blob_attr *host_info;
 	char *addr;
-	char *hostname;
 };
 
 struct usteer_remote_node {

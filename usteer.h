@@ -139,10 +139,6 @@ struct usteer_node_handler {
 		    void *, void (*cb)(void *priv, struct usteer_scan_result *r));
 };
 
-struct usteer_local_host {
-	char hostname[32];
-};
-
 struct usteer_config {
 	bool syslog;
 	uint32_t debug_level;
@@ -256,7 +252,6 @@ struct sta {
 
 extern struct ubus_context *ubus_ctx;
 extern struct usteer_config config;
-extern struct usteer_local_host local_host;
 extern struct list_head node_handlers;
 extern struct avl_tree stations;
 extern struct ubus_object usteer_obj;

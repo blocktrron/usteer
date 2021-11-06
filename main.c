@@ -29,7 +29,6 @@
 
 struct ubus_context *ubus_ctx;
 struct usteer_config config = {};
-struct usteer_local_host local_host = {};
 struct blob_attr *host_info_blob;
 uint64_t current_time;
 static int dump_time;
@@ -112,9 +111,6 @@ void usteer_init_defaults(void)
 	config.load_kick_reason_code = 5; /* WLAN_REASON_DISASSOC_AP_BUSY */
 
 	config.debug_level = MSG_FATAL;
-
-	memset(&local_host, 0, sizeof(local_host));
-	gethostname(local_host.hostname, 32);
 }
 
 void usteer_update_time(void)

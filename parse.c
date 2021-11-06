@@ -27,7 +27,6 @@ bool parse_apmsg(struct apmsg *msg, struct blob_attr *data)
 		[APMSG_SEQ] = { .type = BLOB_ATTR_INT32 },
 		[APMSG_NODES] = { .type = BLOB_ATTR_NESTED },
 		[APMSG_HOST_INFO] = { .type = BLOB_ATTR_NESTED },
-		[APMSG_HOSTNAME] = { .type = BLOB_ATTR_STRING },
 	};
 	struct blob_attr *tb[__APMSG_MAX];
 
@@ -39,9 +38,6 @@ bool parse_apmsg(struct apmsg *msg, struct blob_attr *data)
 	msg->seq = blob_get_int32(tb[APMSG_SEQ]);
 	msg->nodes = tb[APMSG_NODES];
 	msg->host_info = tb[APMSG_HOST_INFO];
-	msg->hostname = NULL;
-	if (tb[APMSG_HOSTNAME])
-		msg->hostname = blob_get_string(tb[APMSG_HOSTNAME]);
 
 	return true;
 }

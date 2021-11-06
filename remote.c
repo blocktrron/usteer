@@ -216,13 +216,12 @@ remote_node_free(struct usteer_remote_node *node)
 		return;
 
 	avl_delete(&remote_hosts, &host->avl);
-	free(host->hostname);
 	free(host->addr);
 	free(host);
 }
 
 static struct usteer_remote_host *
-interface_get_host(const char *addr, unsigned long id, const char *hostname)
+interface_get_host(const char *addr, unsigned long id)
 {
 	struct usteer_remote_host *host;
 
@@ -235,8 +234,6 @@ interface_get_host(const char *addr, unsigned long id, const char *hostname)
 	INIT_LIST_HEAD(&host->nodes);
 	avl_insert(&remote_hosts, &host->avl);
 
-	if (hostname)
-		host->hostname = strdup(hostname);
 out:
 	if (host->addr && !strcmp(host->addr, addr))
 		return host;
@@ -258,20 +255,13 @@ interface_get_node(struct usteer_remote_host *host, const char *name)
 		if (!strcmp(node->name, name))
 			return node;
 
-	node = calloc_a(sizeof(*node), &buf, 32 + 1 + addr_len + 1 + strlen(name) + 1);
+	node = calloc_a(sizeof(*node), &buf, addr_len + 1 + strlen(name) + 1);
 	node->node.type = NODE_TYPE_REMOTE;
 	node->node.created = current_time;
 
-	if (host->hostname) {
-		sprintf(buf, "%s#%s#%s", host->hostname, host->addr, name);
-		node->name = buf + strlen(host->hostname) + 1 + addr_len + 1;
-	} else {
-		sprintf(buf, "%s#%s", host->addr, name);
-		node->name = buf + addr_len + 1;
-	}
-	MSG(INFO, "%s\n", node->name);
-
+	sprintf(buf, "%s#%s", host->addr, name);
 	node->node.avl.key = buf;
+	node->name = buf + addr_len + 1;
 	node->host = host;
 	INIT_LIST_HEAD(&node->node.sta_info);
 
@@ -337,7 +327,7 @@ interface_recv_msg(struct interface *iface, char *addr_str, void *buf, int len)
 	MSG(NETWORK, "Received message on %s (id=%08x->%08x seq=%d len=%d)\n",
 		interface_name(iface), msg.id, local_id, msg.seq, len);
 
-	host = interface_get_host(addr_str, msg.id, msg.hostname);
+	host = interface_get_host(addr_str, msg.id);
 	usteer_node_set_blob(&host->host_info, msg.host_info);
 
 	blob_for_each_attr(cur, msg.nodes, rem)
@@ -624,7 +614,6 @@ usteer_update_init(void)
 	blob_buf_init(&buf, 0);
 	blob_put_int32(&buf, APMSG_ID, local_id);
 	blob_put_int32(&buf, APMSG_SEQ, ++msg_seq);
-	blob_put_string(&buf, APMSG_HOSTNAME, local_host.hostname);
 	if (host_info_blob)
 		blob_put(&buf, APMSG_HOST_INFO,
 			 blob_data(host_info_blob),
