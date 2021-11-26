@@ -207,6 +207,13 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_ANNOUNCE_DISASSOC,
 };
 
+struct sta_info_beacon_report {
+	uint8_t rcpi;
+	uint8_t rsni;
+
+	uint64_t timestamp;
+};
+
 struct sta_info {
 	struct list_head list;
 	struct list_head node_list;
@@ -221,6 +228,8 @@ struct sta_info {
 	uint64_t seen;
 	uint64_t last_connected;
 	int signal;
+
+	struct sta_info_beacon_report beacon_report;
 
 	enum roam_trigger_state roam_state;
 	uint8_t roam_tries;
@@ -273,6 +282,10 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si);
 
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);
+
+struct usteer_remote_node *usteer_remote_node_get(uint8_t *bssid);
+struct usteer_local_node *usteer_local_node_get(uint8_t *bssid);
+struct usteer_node *usteer_node_get(uint8_t *bssid);
 
 bool usteer_sta_supports_beacon_measurement_mode(struct sta *sta, enum usteer_beacon_measurement_mode mode);
 
