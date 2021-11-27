@@ -22,12 +22,12 @@
 #include "event.h"
 
 static bool
-below_assoc_threshold(struct sta_info *si_cur, struct sta_info *si_new)
+below_assoc_threshold(struct usteer_node *node_cur, struct usteer_node *node_new)
 {
-	int n_assoc_cur = si_cur->node->n_assoc;
-	int n_assoc_new = si_new->node->n_assoc;
-	bool ref_5g = si_cur->node->freq > 4000;
-	bool node_5g = si_new->node->freq > 4000;
+	int n_assoc_cur = node_cur->n_assoc;
+	int n_assoc_new = node_new->n_assoc;
+	bool ref_5g = node_cur->freq > 4000;
+	bool node_5g = node_new->freq > 4000;
 
 	if (ref_5g && !node_5g)
 		n_assoc_new += config.band_steering_threshold;
@@ -40,9 +40,9 @@ below_assoc_threshold(struct sta_info *si_cur, struct sta_info *si_new)
 }
 
 static bool
-better_signal_strength(struct sta_info *si_cur, struct sta_info *si_new)
+better_signal_strength(int signal_cur, int signal_new)
 {
-	const bool is_better = si_new->signal - si_cur->signal
+	const bool is_better = signal_new - signal_cur
 				> (int) config.signal_diff_threshold;
 
 	if (!config.signal_diff_threshold)
@@ -52,99 +52,170 @@ better_signal_strength(struct sta_info *si_cur, struct sta_info *si_new)
 }
 
 static bool
-below_load_threshold(struct sta_info *si)
+below_load_threshold(struct usteer_node *node)
 {
-	return si->node->n_assoc >= config.load_kick_min_clients &&
-	       si->node->load > config.load_kick_threshold;
+	return node->n_assoc >= config.load_kick_min_clients &&
+	       node->load > config.load_kick_threshold;
 }
 
 static bool
-has_better_load(struct sta_info *si_cur, struct sta_info *si_new)
+has_better_load(struct usteer_node *node_cur, struct usteer_node *node_new)
 {
-	return !below_load_threshold(si_cur) && below_load_threshold(si_new);
+	return !below_load_threshold(node_cur) && below_load_threshold(node_new);
 }
 
 static bool
-below_max_assoc(struct sta_info *si)
+below_max_assoc(struct usteer_node *node)
 {
-	struct usteer_node *node = si->node;
-
 	return !node->max_assoc || node->n_assoc < node->max_assoc;
 }
 
 static bool
-over_min_signal(struct sta_info *si)
+over_min_signal(struct usteer_node *node, int signal)
 {
-	if (config.min_snr && si->signal < usteer_snr_to_signal(si->node, config.min_snr))
+	if (config.min_snr && signal < usteer_snr_to_signal(node, config.min_snr))
 		return false;
 
-	if (config.roam_trigger_snr && si->signal < usteer_snr_to_signal(si->node, config.roam_trigger_snr))
+	if (config.roam_trigger_snr && signal < usteer_snr_to_signal(node, config.roam_trigger_snr))
 		return false;
 	
 	return true;
 }
 
-static uint32_t
-is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
+bool
+usteer_policy_node_selectable(struct usteer_node *node)
+{
+	if (!below_max_assoc(node))
+		return false;
+
+	return true;
+}
+
+static bool
+usteer_policy_node_selectable_for_sta(struct usteer_node *current_node, int current_signal,
+				      struct usteer_node *new_node, int new_signal)
+{
+	if (!usteer_policy_node_selectable(new_node))
+		return false;
+
+	if (!over_min_signal(new_node, new_signal))
+		return false;
+	
+	if (strcmp(new_node->ssid, current_node->ssid) != 0)
+		return false;
+
+	return true;
+}
+
+bool
+usteer_policy_node_selectable_by_sta(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age)
+{
+	if (strcmp(si_ref->node->ssid, si_new->node->ssid))
+		return false;
+	
+	if (max_age && max_age < current_time - si_new->seen)
+		return false;
+	
+	if (config.seen_policy_timeout < current_time - si_new->seen)
+		return false;
+
+	if (!usteer_policy_node_selectable_for_sta(si_ref->node, si_ref->signal, si_ref->node, si_ref->signal))
+		return false;
+
+	return true;
+}
+
+bool
+usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
+						 struct usteer_measurement_report *mr_new, uint64_t max_age)
+{
+	int old_signal = usteer_rcpi_to_rssi(mr_ref->beacon_report.rcpi);
+	int new_signal = usteer_rcpi_to_rssi(mr_new->beacon_report.rcpi);
+		
+	if (max_age && max_age < current_time - mr_new->timestamp)
+		return false;
+	
+	if (config.measurement_policy_timeout < current_time - mr_new->timestamp)
+		return false;
+
+	if (!usteer_policy_node_selectable_for_sta(mr_new->node, old_signal, mr_new->node, new_signal))
+		return false;
+
+	return true;
+}
+
+uint32_t
+usteer_policy_is_better_candidate(struct usteer_node *current_node,
+				  int current_signal,
+				  struct usteer_node *new_node,
+				  int new_signal)
 {
 	uint32_t reasons = 0;
 
-	if (!below_max_assoc(si_new))
+	if (!below_max_assoc(new_node))
 		return 0;
 
-	if (!over_min_signal(si_new))
+	if (!over_min_signal(new_node, new_signal))
 		return 0;
 
-	if (below_assoc_threshold(si_cur, si_new) &&
-	    !below_assoc_threshold(si_new, si_cur))
+	if (below_assoc_threshold(current_node, new_node) &&
+	    !below_assoc_threshold(new_node, current_node))
 		reasons |= (1 << UEV_SELECT_REASON_NUM_ASSOC);
 
-	if (better_signal_strength(si_cur, si_new))
+	if (better_signal_strength(current_signal, new_signal))
 		reasons |= (1 << UEV_SELECT_REASON_SIGNAL);
 
-	if (has_better_load(si_cur, si_new) &&
-		!has_better_load(si_cur, si_new))
+	if (has_better_load(current_node, new_node) &&
+		!has_better_load(current_node, new_node))
 		reasons |= (1 << UEV_SELECT_REASON_LOAD);
 
 	return reasons;
 }
 
-static struct sta_info *
+
+
+static struct usteer_node *
 find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t required_criteria, uint64_t max_age)
 {
+	struct usteer_candidate_list *cl;
+	struct usteer_candidate *c = NULL;
+	struct usteer_node *node;
+	int candidate_count;
 	struct sta_info *si;
-	struct sta *sta = si_ref->sta;
 	uint32_t reasons;
 
-	list_for_each_entry(si, &sta->nodes, list) {
-		if (si == si_ref)
+	/* Get candidate list */
+	cl = usteer_candidate_list_get_empty(0);
+	usteer_candidate_list_add_for_sta(cl, si, RN_RATING_EXCLUDE, required_criteria, max_age);
+	candidate_count = usteer_candidate_list_len(cl);
+
+	/* Check if better candidate was found */
+	if (!candidate_count) {
+		usteer_candidate_list_free(cl);
+		return NULL;
+	}
+	
+	/* List is ordered by our preference.
+	 * The first entry is the most preferred node
+	 */
+	for_each_candidate(cl, c) {
+		if (node)
 			continue;
 
-		if (current_time - si->seen > config.seen_policy_timeout)
-			continue;
-
-		if (strcmp(si->node->ssid, si_ref->node->ssid) != 0)
-			continue;
-
-		if (max_age && max_age < current_time - si->seen)
-			continue;
-
-		reasons = is_better_candidate(si_ref, si);
-		if (!reasons)
-			continue;
-
-		if (!(reasons & required_criteria))
-			continue;
+		node = c->node;
 
 		if (ev) {
-			ev->si_other = si;
-			ev->select_reasons = reasons;
-		}
+			si = usteer_sta_info_get(si_ref->sta, node, false);
+			if (si)
+				ev->si_other = si;
 
-		return si;
+			/* ToDo: add measurement to Event */
+			ev->select_reasons = c->reasons;
+		}
 	}
 
-	return NULL;
+	usteer_candidate_list_free(cl);
+	return node;
 }
 
 int
@@ -461,6 +532,53 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 	}
 }
 
+static bool
+usteer_policy_load_kick_enabled()
+{
+	return config.load_kick_enabled && config.load_kick_threshold && config.load_kick_delay;
+}
+
+static bool
+usteer_policy_load_kick_load_threshold_reached(struct usteer_local_node *ln)
+{
+	struct usteer_node *node = &ln->node;
+
+	if (!usteer_policy_load_kick_enabled())
+		return false;
+
+	return node->load >= config.load_kick_threshold;
+}
+
+static bool
+usteer_policy_load_kick_min_clients_reached(struct usteer_local_node *ln)
+{
+	struct usteer_node *node = &ln->node;
+
+	if (!usteer_policy_load_kick_enabled())
+		return false;
+
+	return node->n_assoc >= config.load_kick_min_clients;
+}
+
+static bool
+usteer_policy_load_kick_delay_exceeded(struct usteer_local_node *ln)
+{
+	unsigned int min_count = DIV_ROUND_UP(config.load_kick_delay, config.local_sta_update);
+
+	if (!usteer_policy_load_kick_enabled())
+		return false;
+
+	return ln->load_thr_count > min_count;
+}
+
+bool
+usteer_policy_load_kick_active(struct usteer_local_node *ln)
+{
+	return usteer_policy_load_kick_load_threshold_reached(ln) &&
+	       usteer_policy_load_kick_min_clients_reached(ln) &&
+	       usteer_policy_load_kick_delay_exceeded(ln);
+}
+
 void
 usteer_local_node_kick(struct usteer_local_node *ln)
 {
@@ -471,16 +589,14 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	struct uevent ev = {
 		.node_local = &ln->node,
 	};
-	unsigned int min_count = DIV_ROUND_UP(config.load_kick_delay, config.local_sta_update);
 
 	usteer_local_node_roam_check(ln, &ev);
 	usteer_local_node_snr_kick(ln);
 
-	if (!config.load_kick_enabled || !config.load_kick_threshold ||
-	    !config.load_kick_delay)
+	if (!usteer_policy_load_kick_enabled(ln))
 		return;
 
-	if (node->load < config.load_kick_threshold) {
+	if (!usteer_policy_load_kick_load_threshold_reached(ln)) {
 		if (!ln->load_thr_count)
 			return;
 
@@ -491,7 +607,8 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 		goto out;
 	}
 
-	if (++ln->load_thr_count <= min_count) {
+	ln->load_thr_count++;
+	if (!usteer_policy_load_kick_delay_exceeded(ln)) {
 		if (ln->load_thr_count > 1)
 			return;
 
@@ -502,7 +619,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	}
 
 	ln->load_thr_count = 0;
-	if (node->n_assoc < config.load_kick_min_clients) {
+	if (!usteer_policy_load_kick_min_clients_reached(ln)) {
 		ev.type = UEV_LOAD_KICK_MIN_CLIENTS;
 		ev.threshold.cur = node->n_assoc;
 		ev.threshold.ref = config.load_kick_min_clients;

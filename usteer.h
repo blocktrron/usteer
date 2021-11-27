@@ -99,6 +99,44 @@ struct usteer_node {
 	uint64_t created;
 };
 
+struct usteer_candidate {
+	struct list_head list;
+
+	struct usteer_node *node;
+	int signal;
+
+	uint8_t priority;
+	uint32_t reasons;
+};
+
+struct usteer_candidate_list {
+	struct list_head candidates;
+
+	int max_length;
+};
+
+enum usteer_reference_node_rating {
+	RN_RATING_EXCLUDE,
+	RN_RATING_FORBID,
+	RN_RATING_REGULAR,
+	RN_RATING_PREFER,
+};
+
+#define for_each_candidate(cl, c)			\
+	list_for_each_entry(c, &cl->candidates, list)
+
+struct usteer_candidate_list *usteer_candidate_list_get_empty(int max_length);
+void usteer_candidate_list_free(struct usteer_candidate_list *cl);
+int usteer_candidate_list_len(struct usteer_candidate_list *cl);
+int usteer_candidate_list_add_for_node(struct usteer_candidate_list *cl, struct usteer_node *node_ref,
+				       enum usteer_reference_node_rating node_ref_rating);
+int usteer_candidate_list_add_for_sta(struct usteer_candidate_list *cl, struct sta_info *si,
+				      enum usteer_reference_node_rating node_ref_rating,
+				      uint32_t required_criteria, uint64_t signal_max_age);
+
+
+char *usteer_rrm_get_neighbor_report_data_for_candidate(struct usteer_candidate *c);
+
 struct usteer_scan_request {
 	int n_freq;
 	int *freq;
@@ -337,6 +375,16 @@ struct usteer_node *usteer_node_by_bssid(uint8_t *bssid);
 
 struct usteer_node *usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last);
 bool usteer_check_request(struct sta_info *si, enum usteer_event_type type);
+
+uint32_t usteer_policy_is_better_candidate(struct usteer_node *current_node,
+					   int current_signal,
+					   struct usteer_node *new_node,
+					   int new_signal);
+bool usteer_policy_node_selectable(struct usteer_node *node);
+bool usteer_policy_node_selectable_by_sta(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age);
+bool usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
+						      struct usteer_measurement_report *mr_new, uint64_t max_age);
+bool usteer_policy_load_kick_active(struct usteer_local_node *ln);
 
 void config_set_interfaces(struct blob_attr *data);
 void config_get_interfaces(struct blob_buf *buf);
