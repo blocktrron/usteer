@@ -323,4 +323,6 @@ void usteer_run_hook(const char *name, const char *arg);
 void usteer_dump_node(struct blob_buf *buf, struct usteer_node *node);
 void usteer_dump_host(struct blob_buf *buf, struct usteer_remote_host *host);
 
+char *usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *node);
+
 #endif
