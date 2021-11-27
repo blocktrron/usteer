@@ -96,6 +96,28 @@ struct usteer_node {
 	uint64_t created;
 };
 
+struct usteer_nr {
+	struct usteer_node *node;
+	uint8_t priority;
+};
+
+enum usteer_reference_node_rating {
+	RN_RATING_EXCLUDE,
+	RN_RATING_FORBID,
+	RN_RATING_REGULAR,
+	RN_RATING_PREFER,
+};
+
+char *usteer_rrm_get_nr_data_for_usteer_nr(struct usteer_nr *nr);
+int
+usteer_rrm_nr_list_get_for_node(struct usteer_nr *nr_buf, int nr_buf_len,
+				struct usteer_node *node_ref,
+				enum usteer_reference_node_rating node_ref_pref);
+int
+usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
+			       struct sta_info *si,
+			       enum usteer_reference_node_rating node_ref_pref);
+
 struct usteer_scan_request {
 	int n_freq;
 	int *freq;
@@ -305,6 +327,9 @@ void usteer_node_set_blob(struct blob_attr **dest, struct blob_attr *val);
 
 struct usteer_node *usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last);
 bool usteer_check_request(struct sta_info *si, enum usteer_event_type type);
+
+bool usteer_policy_node_selectable(struct usteer_node *node);
+bool usteer_policy_node_selectable_by_sta(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age);
 
 void config_set_interfaces(struct blob_attr *data);
 void config_get_interfaces(struct blob_buf *buf);

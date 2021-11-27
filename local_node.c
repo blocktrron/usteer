@@ -374,54 +374,44 @@ usteer_local_node_req_cb(struct ubus_request *req, int ret)
 	uloop_timeout_set(&ln->req_timer, 1);
 }
 
-static bool
-usteer_add_rrm_data(struct usteer_local_node *ln, struct usteer_node *node)
+static bool usteer_local_node_add_rrm_data(struct usteer_nr *nr)
 {
-	if (node == &ln->node)
+	char *rrm_str = usteer_rrm_get_nr_data_for_usteer_nr(nr);
+	void *c;
+
+	if (!rrm_str)
 		return false;
-
-	if (!node->rrm_nr)
-		return false;
-
-	/* Remote node only adds same SSID. Required for local-node. */
-	if (strcmp(ln->node.ssid, node->ssid) != 0)
-		return false;
-
-	blobmsg_add_field(&b, BLOBMSG_TYPE_ARRAY, "",
-			  blobmsg_data(node->rrm_nr),
-			  blobmsg_data_len(node->rrm_nr));
-
+	
+	/* Field 1 and two are the BSSID of the neighbor.
+	 * hostapd automatically sets these to the correct values
+	 */
+	c = blobmsg_open_array(&b, "");
+	blobmsg_add_string(&b, "", "");
+	blobmsg_add_string(&b, "", "");
+	blobmsg_add_string(&b, "", rrm_str);
+	blobmsg_close_array(&b, c);
 	return true;
 }
 
 static void
 usteer_local_node_prepare_rrm_set(struct usteer_local_node *ln)
 {
-	struct usteer_node *node, *last_remote_neighbor = NULL;
+	struct usteer_nr *nr_buf;
+	int inserted;
 	int i = 0;
 	void *c;
 
+	nr_buf = calloc(config.max_neighbor_reports, sizeof(struct usteer_nr));
+	if (!nr_buf)
+		return;
+
+	inserted = usteer_rrm_nr_list_get_for_node(nr_buf, config.max_neighbor_reports, &ln->node, RN_RATING_REGULAR);
+
 	c = blobmsg_open_array(&b, "list");
-	for_each_local_node(node) {
-		if (i >= config.max_neighbor_reports)
-			break;
-		if (usteer_add_rrm_data(ln, node))
-			i++;
-	}
-
-	while (i < config.max_neighbor_reports) {
-		node = usteer_node_get_next_neighbor(&ln->node, last_remote_neighbor);
-		if (!node) {
-			/* No more nodes available */
-			break;
-		}
-
-		last_remote_neighbor = node;
-		if (usteer_add_rrm_data(ln, node))
-			i++;
-	}
-		
+	for (i = 0; i < inserted; i++)
+		usteer_local_node_add_rrm_data(&nr_buf[i]);	
 	blobmsg_close_array(&b, c);
+	free(nr_buf);
 }
 
 static void

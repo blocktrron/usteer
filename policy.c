@@ -65,10 +65,8 @@ has_better_load(struct sta_info *si_cur, struct sta_info *si_new)
 }
 
 static bool
-below_max_assoc(struct sta_info *si)
+below_max_assoc(struct usteer_node *node)
 {
-	struct usteer_node *node = si->node;
-
 	return !node->max_assoc || node->n_assoc < node->max_assoc;
 }
 
@@ -84,12 +82,42 @@ over_min_signal(struct sta_info *si)
 	return true;
 }
 
+bool
+usteer_policy_node_selectable(struct usteer_node *node)
+{
+	if (!below_max_assoc(node))
+		return false;
+
+	return true;
+}
+
+bool
+usteer_policy_node_selectable_by_sta(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age)
+{
+	if (!usteer_policy_node_selectable(si_new->node))
+		return false;
+
+	if (!over_min_signal(si_new))
+		return false;
+	
+	if (current_time - si_new->seen > config.seen_policy_timeout)
+		return false;
+
+	if (strcmp(si_new->node->ssid, si_ref->node->ssid) != 0)
+		return false;
+
+	if (max_age && max_age < current_time - si_new->seen)
+		return false;
+	
+	return true;
+}
+
 static uint32_t
 is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
 {
 	uint32_t reasons = 0;
 
-	if (!below_max_assoc(si_new))
+	if (!below_max_assoc(si_new->node))
 		return 0;
 
 	if (!over_min_signal(si_new))
@@ -109,6 +137,8 @@ is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
 	return reasons;
 }
 
+
+
 static struct sta_info *
 find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t required_criteria, uint64_t max_age)
 {
@@ -120,13 +150,7 @@ find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t requi
 		if (si == si_ref)
 			continue;
 
-		if (current_time - si->seen > config.seen_policy_timeout)
-			continue;
-
-		if (strcmp(si->node->ssid, si_ref->node->ssid) != 0)
-			continue;
-
-		if (max_age && max_age < current_time - si->seen)
+		if (!usteer_policy_node_selectable_by_sta(si_ref, si, max_age))
 			continue;
 
 		reasons = is_better_candidate(si_ref, si);
