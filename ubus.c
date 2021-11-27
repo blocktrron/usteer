@@ -24,6 +24,7 @@
 #include <netinet/ether.h>
 #endif
 
+#include "neighbor_report.h"
 #include "usteer.h"
 #include "node.h"
 #include "event.h"
@@ -491,6 +492,9 @@ struct ubus_object usteer_obj = {
 	.n_methods = ARRAY_SIZE(usteer_methods),
 };
 
+#define MAX_NR_SIZE	256
+#define MAX_NR_STRLEN	(MAX_NR_SIZE * 2)
+
 static bool
 usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
 {
@@ -500,6 +504,8 @@ usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
 		{ .type = BLOBMSG_TYPE_STRING },
 	};
 	struct blob_attr *tb[3];
+	char nr[MAX_NR_SIZE] = {}, nr_str[MAX_NR_STRLEN + 1] = {};
+	char priority = 128;
 
 	if (!node->rrm_nr)
 		return false;
@@ -513,12 +519,24 @@ usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
 	if (!tb[2])
 		return false;
 
-	blobmsg_add_field(&b, BLOBMSG_TYPE_STRING, "",
-			  blobmsg_data(tb[2]),
-			  blobmsg_data_len(tb[2]));
-	
+	/* Add Candidate preference subelement */
+	if (blobmsg_data_len(tb[2]) > MAX_NR_STRLEN + 1)
+		return false;
+
+	if (usteer_load_hex(blobmsg_get_string(tb[2]), nr, MAX_NR_SIZE) < 0)
+		return false;
+
+	usteer_nr_set_subelement(nr, MAX_NR_SIZE, 3, &priority, sizeof(priority));
+
+	usteer_dump_hex(nr, usteer_nr_len(nr, MAX_NR_SIZE), nr_str);
+
+	blobmsg_add_string(&b, "", nr_str);
+
 	return true;
 }
+
+#undef MAX_NR_SIZE
+#undef MAX_NR_STRLEN
 
 static void
 usteer_ubus_disassoc_add_neighbors(struct sta_info *si)
