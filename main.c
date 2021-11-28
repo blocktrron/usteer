@@ -41,6 +41,33 @@ const char * const event_types[__EVENT_TYPE_MAX] = {
 	[EVENT_TYPE_ASSOC] = "assoc",
 };
 
+int 
+usteer_load_hex(char *hexstr, char *output, int output_size)
+{
+	char *pos = hexstr;
+	size_t hexstr_len;
+	int i;
+	
+	hexstr_len = strlen(hexstr);
+
+	if (hexstr_len % 2 != 0 || hexstr_len > output_size * 2)
+		return -1;
+
+	for (i = 0; i < hexstr_len / 2; i++) {
+		sscanf(pos, "%2hhx", &output[i]);
+		pos += 2;
+	}
+
+	return i;
+}
+
+void
+usteer_dump_hex(char *buf, size_t size, char *output)
+{
+	for (size_t i = 0; i < size; i++)
+		sprintf(&output[i*2], "%02X", (unsigned char)buf[i]);
+}
+
 void log_msg(char *msg)
 {
 	if (config.syslog)
