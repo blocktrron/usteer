@@ -409,8 +409,8 @@ usteer_local_node_snr_kick(struct usteer_local_node *ln)
 	}
 }
 
-void
-usteer_local_node_kick(struct usteer_local_node *ln)
+static void
+usteer_local_node_load_kick(struct usteer_local_node *ln)
 {
 	struct usteer_node *node = &ln->node;
 	struct sta_info *kick1 = NULL, *kick2 = NULL;
@@ -420,27 +420,6 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 		.node_local = &ln->node,
 	};
 	unsigned int min_count = DIV_ROUND_UP(config.load_kick_delay, config.local_sta_update);
-
-	usteer_update_time();
-
-	/* Kick pending clients */
-	list_for_each_entry(si, &ln->node.sta_info, node_list) {
-		if (si->roam_transition_request) {
-			/* Check if disassociation timer expired.
-			 * This is taken care of in hostapd-full by sending a BSS-transition request.
-			 *
-			 * hostapd-basic does not cupport WNM, thus we resemble the disassoc timer.
-			 *
-			 * ToDo: Fetch beacon-interval from hostapd
-			 */
-			if (current_time - si->roam_transition_request < config.roam_kick_delay * 100 * 128 / 125)
-				continue;
-			usteer_ubus_kick_client(si);
-		}
-	}
-
-	usteer_local_node_roam_check(ln, &ev);
-	usteer_local_node_snr_kick(ln);
 
 	if (!usteer_policy_kick_allowed(ln))
 		return;
@@ -516,4 +495,35 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 
 out:
 	usteer_event(&ev);
+}
+
+void
+usteer_local_node_kick(struct usteer_local_node *ln)
+{
+	struct sta_info *si;
+	struct uevent ev = {
+		.node_local = &ln->node,
+	};
+
+	usteer_update_time();
+
+	/* Kick pending clients */
+	list_for_each_entry(si, &ln->node.sta_info, node_list) {
+		if (si->roam_transition_request) {
+			/* Check if disassociation timer expired.
+			 * This is taken care of in hostapd-full by sending a BSS-transition request.
+			 *
+			 * hostapd-basic does not cupport WNM, thus we resemble the disassoc timer.
+			 *
+			 * ToDo: Fetch beacon-interval from hostapd
+			 */
+			if (current_time - si->roam_transition_request < config.roam_kick_delay * 100 * 128 / 125)
+				continue;
+			usteer_ubus_kick_client(si);
+		}
+	}
+
+	usteer_local_node_roam_check(ln, &ev);
+	usteer_local_node_snr_kick(ln);
+	usteer_local_node_load_kick(ln);
 }
