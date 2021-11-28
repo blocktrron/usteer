@@ -45,6 +45,9 @@ extern void log_msg(char *msg);
 extern void debug_msg(int level, const char *func, int line, const char *format, ...);
 extern void debug_msg_cont(int level, const char *format, ...);
 
+extern int usteer_load_hex(char *hexstr, char *output, int output_size);
+extern void usteer_dump_hex(char *buf, size_t buf_size, char *output);
+
 #define __usteer_init __attribute__((constructor))
 
 #endif
