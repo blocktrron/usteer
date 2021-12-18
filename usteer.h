@@ -205,6 +205,7 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_SCAN,
 	ROAM_TRIGGER_SCAN_DONE,
 	ROAM_TRIGGER_ANNOUNCE_DISASSOC,
+	__ROAM_TRIGGER_MAX
 };
 
 struct sta_info_beacon_report {

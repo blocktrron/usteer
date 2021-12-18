@@ -264,6 +264,13 @@ static void
 usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 		      struct uevent *ev)
 {
+	static const enum uevent_type event_type_mapping[__ROAM_TRIGGER_MAX] = {
+		[ROAM_TRIGGER_IDLE] = UEV_ROAM_TRIGGER_IDLE,
+		[ROAM_TRIGGER_SCAN] = UEV_ROAM_TRIGGER_SCAN,
+		[ROAM_TRIGGER_SCAN_DONE] = UEV_ROAM_TRIGGER_SCAN_DONE,
+		[ROAM_TRIGGER_ANNOUNCE_DISASSOC] = UEV_ROAM_TRIGGER_KICK,
+	};
+
 	si->roam_event = current_time;
 
 	if (si->roam_state == state) {
@@ -278,6 +285,10 @@ usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 	}
 
 	si->roam_state = state;
+
+	ev->type = event_type_mapping[state];
+	ev->reason = UEV_REASON_NONE;
+
 	usteer_event(ev);
 }
 
@@ -339,6 +350,8 @@ usteer_roam_trigger_sm(struct sta_info *si)
 		
 		usteer_local_node_notify_imminent_disassoc(si);
 		return true;
+	default:
+		return false;
 	}
 
 	return false;
