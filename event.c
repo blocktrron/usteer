@@ -35,6 +35,10 @@ static const char * const uev_name[] = {
 	[UEV_LOAD_KICK_NO_CLIENT] = "load_kick_no_client",
 	[UEV_LOAD_KICK_CLIENT] = "load_kick_client",
 	[UEV_SIGNAL_KICK] = "signal_kick",
+	[UEV_ROAM_TRIGGER_IDLE] = "roam_trigger_idle",
+	[UEV_ROAM_TRIGGER_SCAN] = "roam_trigger_scan",
+	[UEV_ROAM_TRIGGER_SCAN_DONE] = "roam_trigger_scan_done",
+	[UEV_ROAM_TRIGGER_KICK] = "roam_trigger_kick",
 
 };
 static const char * const uev_reason[] = {
@@ -223,7 +227,8 @@ void config_set_event_log_types(struct blob_attr *attr)
 				(1 << UEV_LOAD_KICK_CLIENT) |
 				(1 << UEV_SIGNAL_KICK) |
 				(1 << UEV_AUTH_REQ_DENY) |
-				(1 << UEV_ASSOC_REQ_DENY),
+				(1 << UEV_ASSOC_REQ_DENY) |
+				(1 << UEV_ROAM_TRIGGER_KICK),
 			[MSG_VERBOSE] =
 				(1 << UEV_PROBE_REQ_DENY),
 			[MSG_DEBUG] =
@@ -232,7 +237,10 @@ void config_set_event_log_types(struct blob_attr *attr)
 				(1 << UEV_LOAD_KICK_TRIGGER) |
 				(1 << UEV_LOAD_KICK_RESET) |
 				(1 << UEV_LOAD_KICK_MIN_CLIENTS) |
-				(1 << UEV_LOAD_KICK_NO_CLIENT),
+				(1 << UEV_LOAD_KICK_NO_CLIENT) |
+				(1 << UEV_ROAM_TRIGGER_IDLE) |
+				(1 << UEV_ROAM_TRIGGER_SCAN) |
+				(1 << UEV_ROAM_TRIGGER_SCAN_DONE),
 		};
 
 		if (config.debug_level >= MSG_DEBUG_ALL) {
