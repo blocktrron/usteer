@@ -77,9 +77,6 @@ usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *nod
 	static char nr_str[MAX_NR_STRLEN + 1];
 	uint8_t priority = usteer_rrm_determine_node_priority(current_node, node, si);
 
-	if (node == current_node)
-		goto out_fail;
-
 	if (!node->rrm_nr)
 		goto out_fail;
 

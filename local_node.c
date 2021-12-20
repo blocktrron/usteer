@@ -445,6 +445,8 @@ usteer_local_node_prepare_rrm_set(struct usteer_local_node *ln)
 	for_each_local_node(node) {
 		if (i >= config.max_neighbor_reports)
 			break;
+		if (&ln->node == node)
+			continue;
 		if (usteer_local_node_add_rrm_data(ln, node))
 			i++;
 	}

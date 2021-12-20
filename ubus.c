@@ -506,7 +506,7 @@ usteer_ubus_add_nr_entry(struct sta_info *si, struct usteer_node *n)
 }
 
 static void
-usteer_ubus_disassoc_add_neighbors(struct sta_info *si)
+usteer_ubus_disassoc_add_neighbors(struct sta_info *si, bool include_own)
 {
 	struct usteer_node *node, *last_remote_neighbor = NULL;
 	int i = 0;
@@ -516,7 +516,7 @@ usteer_ubus_disassoc_add_neighbors(struct sta_info *si)
 	for_each_local_node(node) {
 		if (i >= config.max_neighbor_reports)
 			break;
-		if (si->node == node)
+		if (si->node == node && !include_own)
 			continue;
 		if (usteer_ubus_add_nr_entry(si, node))
 			i++;
@@ -550,7 +550,7 @@ int usteer_ubus_bss_transition_request(struct sta_info *si,
 	blobmsg_add_u8(&b, "disassociation_imminent", disassoc_imminent);
 	blobmsg_add_u8(&b, "abridged", abridged);
 	blobmsg_add_u32(&b, "validity_period", validity_period);
-	usteer_ubus_disassoc_add_neighbors(si);
+	usteer_ubus_disassoc_add_neighbors(si, true);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "bss_transition_request", b.head, NULL, 0, 100);
 }
 
@@ -561,7 +561,7 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si)
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_u32(&b, "duration", config.roam_kick_delay);
-	usteer_ubus_disassoc_add_neighbors(si);
+	usteer_ubus_disassoc_add_neighbors(si, false);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "wnm_disassoc_imminent", b.head, NULL, 0, 100);
 }
 
