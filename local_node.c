@@ -137,6 +137,44 @@ usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
 }
 
 static int
+usteer_handle_bss_tm_query(struct usteer_local_node *ln, struct blob_attr *msg)
+{
+	enum {
+		BSS_TM_QUERY_ADDRESS,
+		BSS_TM_QUERY_DIALOG_TOKEN,
+		__BSS_TM_QUERY_MAX
+	};
+	struct blobmsg_policy policy[__BSS_TM_QUERY_MAX] = {
+		[BSS_TM_QUERY_ADDRESS] = { .name = "address", .type = BLOBMSG_TYPE_STRING },
+		[BSS_TM_QUERY_DIALOG_TOKEN] = { .name = "dialog-token", .type = BLOBMSG_TYPE_INT8 },
+	};
+	struct blob_attr *tb[__BSS_TM_QUERY_MAX];
+	struct usteer_bss_tm_query *query;
+	uint8_t *sta_addr;
+
+	blobmsg_parse(policy, __BSS_TM_QUERY_MAX, tb, blob_data(msg), blob_len(msg));
+
+	if (!tb[BSS_TM_QUERY_ADDRESS] || !tb[BSS_TM_QUERY_DIALOG_TOKEN])
+		return 0;
+
+	query = calloc(1, sizeof(*query));
+	if (!query)
+		return 0;
+
+	query->dialog_token = blobmsg_get_u8(tb[BSS_TM_QUERY_DIALOG_TOKEN]);
+
+	sta_addr = (uint8_t *) ether_aton(blobmsg_get_string(tb[BSS_TM_QUERY_ADDRESS]));
+	if (!sta_addr)
+		return 0;
+
+	memcpy(query->sta_addr, sta_addr, 6);
+	list_add(&query->list, &ln->bss_tm_queries);
+	uloop_timeout_set(&ln->bss_tm_queries_timeout, 1);
+
+	return 1;
+}
+
+static int
 usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 		   struct ubus_request_data *req, const char *method,
 		   struct blob_attr *msg)
@@ -171,6 +209,8 @@ usteer_handle_event(struct ubus_context *ctx, struct ubus_object *obj,
 
 	if (!strcmp(method, "beacon-report")) {
 		return usteer_handle_beacon_report(ln, msg);
+	} else if(!strcmp(method, "bss-transition-query")) {
+		return usteer_handle_bss_tm_query(ln, msg);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(event_types); i++) {
@@ -482,6 +522,37 @@ usteer_local_node_update(struct uloop_timeout *timeout)
 	uloop_timeout_set(timeout, config.local_sta_update);
 }
 
+static void
+usteer_local_node_process_bss_tm_queries(struct uloop_timeout *timeout)
+{
+	struct usteer_bss_tm_query *query, *tmp;
+	struct usteer_local_node *ln;
+	struct usteer_node *node;
+	struct sta_info *si;
+	struct sta *sta;
+
+	uint8_t validity_period = 100; /* ~ 10 seconds */
+
+	ln = container_of(timeout, struct usteer_local_node, bss_tm_queries_timeout);
+	node = &ln->node;
+
+	list_for_each_entry_safe(query, tmp, &ln->bss_tm_queries, list) {
+		sta = usteer_sta_get(query->sta_addr, false);
+		if (!sta)
+			goto delete_query;
+
+		si = usteer_sta_info_get(sta, node, false);
+		if (!si)
+			goto delete_query;
+
+		usteer_ubus_bss_transition_request(si, query->dialog_token, false, false, validity_period);
+
+delete_query:
+		list_del(&query->list);
+		free(query);
+	}
+}
+
 static struct usteer_local_node *
 usteer_get_node(struct ubus_context *ctx, const char *name)
 {
@@ -507,6 +578,8 @@ usteer_get_node(struct ubus_context *ctx, const char *name)
 	kvlist_init(&ln->node_info, kvlist_blob_len);
 	INIT_LIST_HEAD(&node->sta_info);
 
+	ln->bss_tm_queries_timeout.cb = usteer_local_node_process_bss_tm_queries;
+	INIT_LIST_HEAD(&ln->bss_tm_queries);
 	return ln;
 }
 
