@@ -157,6 +157,7 @@ struct usteer_config {
 	bool assoc_steering;
 
 	uint32_t max_neighbor_reports;
+	uint32_t nr_priority_interval;
 
 	uint32_t band_steering_threshold;
 	uint32_t load_balancing_threshold;
@@ -337,6 +338,6 @@ void usteer_run_hook(const char *name, const char *arg);
 void usteer_dump_node(struct blob_buf *buf, struct usteer_node *node);
 void usteer_dump_host(struct blob_buf *buf, struct usteer_remote_host *host);
 
-char *usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *node);
+char *usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *node, struct sta_info *si);
 
 #endif

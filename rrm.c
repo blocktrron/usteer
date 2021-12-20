@@ -30,8 +30,42 @@
 #define MAX_NR_SIZE	256
 #define MAX_NR_STRLEN	(MAX_NR_SIZE * 2)
 
+static uint8_t
+usteer_rrm_determine_node_priority(struct usteer_node *current_node, struct usteer_node *node, struct sta_info *si)
+{
+	uint8_t priority;
+	uint8_t penalty;
+	int min_signal = 0;
+
+
+	/* Check if client should stay connected to the current node */
+	if (si && current_node == node) {
+		if (config.roam_scan_snr)
+			min_signal = usteer_snr_to_signal(current_node, config.roam_scan_snr);
+		else if (config.roam_trigger_snr)
+			min_signal = usteer_snr_to_signal(current_node, config.roam_trigger_snr);
+		else if (config.min_snr)
+			min_signal = usteer_snr_to_signal(current_node, config.min_snr);
+
+		/* Indicate client should stay connected if load & signal level is fine */
+		if ((!min_signal || si->signal > min_signal) &&
+			(current_node->load < config.load_kick_threshold || current_node->n_assoc < config.load_kick_min_clients))
+				return 255;
+	}
+	
+
+	priority = 128;
+	penalty = (node->load / config.nr_priority_interval) * config.nr_priority_interval;
+
+	/* Increase priority for 5 GHz nodes */
+	if (node->freq > 4000)
+		priority += 1;
+
+	return priority - penalty;
+}
+
 char *
-usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *node)
+usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *node, struct sta_info *si)
 {
 	struct blobmsg_policy policy[3] = {
 		{ .type = BLOBMSG_TYPE_STRING },
@@ -41,7 +75,7 @@ usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *nod
 	struct blob_attr *tb[3];
 	char nr[MAX_NR_SIZE] = {};
 	static char nr_str[MAX_NR_STRLEN + 1];
-	uint8_t priority = 128;
+	uint8_t priority = usteer_rrm_determine_node_priority(current_node, node, si);
 
 	if (node == current_node)
 		goto out_fail;
@@ -65,10 +99,6 @@ usteer_rrm_get_nr_data(struct usteer_node *current_node, struct usteer_node *nod
 
 	if (usteer_load_hex(blobmsg_get_string(tb[2]), nr, MAX_NR_SIZE) < 0)
 		goto out_fail;
-
-	/* Increase priority for 5 GHz nodes */
-	if (node->freq > 4000)
-		priority += 1;
 
 	usteer_nr_set_subelement((uint8_t *)nr, MAX_NR_SIZE, 3, &priority, sizeof(priority));
 

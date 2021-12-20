@@ -417,7 +417,7 @@ usteer_local_node_req_cb(struct ubus_request *req, int ret)
 
 static bool usteer_local_node_add_rrm_data(struct usteer_local_node *ln, struct usteer_node *n)
 {
-	char *rrm_str = usteer_rrm_get_nr_data(&ln->node, n);
+	char *rrm_str = usteer_rrm_get_nr_data(&ln->node, n, NULL);
 	void *c;
 
 	if (!rrm_str)

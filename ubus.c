@@ -160,6 +160,7 @@ struct cfg_item {
 	_cfg(U32, local_sta_timeout), \
 	_cfg(U32, local_sta_update), \
 	_cfg(U32, max_neighbor_reports), \
+	_cfg(U32, nr_priority_interval), \
 	_cfg(U32, max_retry_band), \
 	_cfg(U32, seen_policy_timeout), \
 	_cfg(U32, load_balancing_threshold), \
@@ -492,9 +493,9 @@ struct ubus_object usteer_obj = {
 };
 
 static bool
-usteer_ubus_add_nr_entry(struct usteer_node *current_node, struct usteer_node *n)
+usteer_ubus_add_nr_entry(struct sta_info *si, struct usteer_node *n)
 {
-	char *rrm_str = usteer_rrm_get_nr_data(current_node, n);
+	char *rrm_str = usteer_rrm_get_nr_data(si->node, n, si);
 
 	if (!rrm_str)
 		return false;
@@ -517,7 +518,7 @@ usteer_ubus_disassoc_add_neighbors(struct sta_info *si)
 			break;
 		if (si->node == node)
 			continue;
-		if (usteer_ubus_add_nr_entry(si->node, node))
+		if (usteer_ubus_add_nr_entry(si, node))
 			i++;
 	}
 
@@ -529,7 +530,7 @@ usteer_ubus_disassoc_add_neighbors(struct sta_info *si)
 		}
 
 		last_remote_neighbor = node;
-		if (usteer_ubus_add_nr_entry(si->node, node))
+		if (usteer_ubus_add_nr_entry(si, node))
 			i++;
 	}
 	blobmsg_close_array(&b, c);
