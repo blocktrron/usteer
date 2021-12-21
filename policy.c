@@ -328,9 +328,15 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		if (config.roam_scan_tries &&
-		    si->roam_tries >= config.roam_scan_tries) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
+		if (config.roam_scan_tries && si->roam_tries >= config.roam_scan_tries) {
+			if (!config.roam_scan_timeout) {
+				/* Prepare to kick client */
+				usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
+			} else {
+				/* Kick in scan timeout */
+				config.roam_scan_timeout_start = current_time;
+				usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, &ev);
+			}
 			break;
 		}
 
@@ -344,7 +350,10 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, &ev);
+		/* Start scanning in case we are not timeout-constrained or timeout has expired */
+		if (config.roam_scan_timeout_start && 
+		    current_time > config.roam_scan_timeout_start + config.roam_scan_timeout)
+			usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, &ev);
 		break;
 
 	case ROAM_TRIGGER_SCAN_DONE:
