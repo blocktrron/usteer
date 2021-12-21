@@ -221,6 +221,7 @@ struct sta_info_beacon_report {
 	uint8_t rcpi;
 	uint8_t rsni;
 
+	int local_signal;
 	uint64_t timestamp;
 };
 

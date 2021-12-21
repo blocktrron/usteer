@@ -38,6 +38,7 @@ static void usteer_ubus_client_add_report_data(struct sta_info *si)
 	_cur_n = blobmsg_open_table(&b, "beacon_report");
 	blobmsg_add_u32(&b, "rcpi", si->beacon_report.rcpi);
 	blobmsg_add_u32(&b, "rsni", si->beacon_report.rsni);
+	blobmsg_add_u32(&b, "local_signal", si->beacon_report.local_signal);
 	blobmsg_add_u64(&b, "timestamp", si->beacon_report.timestamp);
 	blobmsg_close_table(&b, _cur_n);
 }

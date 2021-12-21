@@ -94,7 +94,7 @@ usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
 	struct blob_attr *tb[__BEACON_REP_MAX];
 
 	struct usteer_node *n;
-	struct sta_info *si;
+	struct sta_info *si, *local_si;
 	struct sta *sta;
 
 	uint8_t bssid[6], sta_addr[6];
@@ -129,7 +129,12 @@ usteer_handle_beacon_report(struct usteer_local_node *ln, struct blob_attr *msg)
 	if (!si)
 		return 0;
 
+	local_si = usteer_sta_info_get(sta, n, false);
+	if (!local_si)
+		return 0;
+
 	si->beacon_report.timestamp = current_time;
+	si->beacon_report.local_signal = local_si->signal;
 	si->beacon_report.rcpi = blobmsg_get_u16(tb[BEACON_REP_RCPI]);
 	si->beacon_report.rsni = blobmsg_get_u16(tb[BEACON_REP_RSNI]);
 
