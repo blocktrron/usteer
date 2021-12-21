@@ -293,6 +293,26 @@ usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 	usteer_event(ev);
 }
 
+static void
+usteer_roam_sm_start_scan(struct sta_info *si, struct uevent *ev)
+{
+	/* Start scanning in case we are not timeout-constrained or timeout has expired */
+	if (config.roam_scan_timeout && 
+	    current_time > si->roam_scan_timeout_start + config.roam_scan_timeout) {
+		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, ev);
+		return;
+	}
+
+	/* We are currently in scan timeout / cooldown.
+	 * Check if we are in ROAM_TRIGGER_IDLE state and enter this stateif not.
+	 */
+	if (si->roam_state == ROAM_TRIGGER_IDLE)
+		return;
+
+	/* Enter idle state */
+	usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
+}
+
 static bool
 usteer_roam_trigger_sm(struct sta_info *si)
 {
@@ -314,14 +334,20 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		if (config.roam_scan_tries &&
-		    si->roam_tries >= config.roam_scan_tries) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
+		if (config.roam_scan_tries && si->roam_tries >= config.roam_scan_tries) {
+			if (!config.roam_scan_timeout) {
+				/* Prepare to kick client */
+				usteer_roam_set_state(si, ROAM_TRIGGER_ANNOUNCE_DISASSOC, &ev);
+			} else {
+				/* Kick in scan timeout */
+				si->roam_scan_timeout_start = current_time;
+				usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, &ev);
+			}
 			break;
 		}
 
 		usteer_ubus_trigger_client_scan(si);
-		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, &ev);
+		usteer_roam_sm_start_scan(si, &ev);
 		break;
 
 	case ROAM_TRIGGER_IDLE:
@@ -330,13 +356,13 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, &ev);
+		usteer_roam_sm_start_scan(si, &ev);
 		break;
 
 	case ROAM_TRIGGER_SCAN_DONE:
 		/* Check for stale scan results, kick back to SCAN state if necessary */
 		if (current_time - si->roam_scan_done > 2 * config.roam_scan_interval) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, &ev);
+			usteer_roam_sm_start_scan(si, &ev);
 			break;
 		}
 
