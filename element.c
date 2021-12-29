@@ -102,6 +102,28 @@ usteer_element_list_empty(uint8_t *buf, unsigned int buf_len, uint8_t *p)
 	return 1;
 }
 
+uint8_t *
+usteer_element_list_get_idx(uint8_t *buf, unsigned int buf_len, int idx)
+{
+	uint8_t *p = buf;
+	int i = 0;
+
+	if (usteer_element_list_empty(buf, buf_len, p))
+		return NULL;
+	
+	if (!usteer_element_valid(buf, buf_len, p))
+		return NULL;
+
+	while (usteer_element_list_has_next(buf, buf_len, p) && i < idx) {
+		p = usteer_element_list_next(p);
+		i++;
+	}
+	if (i != idx)
+		return NULL;
+
+	return p;
+}
+
 int
 usteer_element_list_len(uint8_t *buf, unsigned int buf_len)
 {

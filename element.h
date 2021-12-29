@@ -29,6 +29,8 @@ usteer_element_valid(uint8_t *buf, unsigned int buf_len, uint8_t *tagged_element
 int
 usteer_element_type(uint8_t *buf, unsigned int buf_len, uint8_t *tagged_element);
 
+uint8_t *
+usteer_element_list_get_idx(uint8_t *buf, unsigned int buf_len, int idx);
 
 int
 usteer_element_list_len(uint8_t *buf, unsigned int buf_len);
