@@ -23,6 +23,7 @@
 #include "neighbor_report.h"
 
 
+#define NEIGHBOR_REPORT_BSSID_OFFSET		(0)
 #define NEIGHBOR_REPORT_MIN_LEN			(13)
 #define NEIGHBOR_REPORT_SUBELEM_PTR(nr)		(&nr[NEIGHBOR_REPORT_MIN_LEN])
 
@@ -58,4 +59,13 @@ usteer_nr_set_subelement(uint8_t *nr_buf, unsigned int nr_buf_len, uint8_t subel
 		return -1;
 
 	return usteer_element_list_set_element(subelem_list, subelem_list_buf_len, subelem, data, data_len);
+}
+
+uint8_t *
+usteer_nr_get_bssid(uint8_t *nr_buf, unsigned int nr_buf_len)
+{
+	if (nr_buf_len < 6)
+		return NULL;
+	
+	return &nr_buf[NEIGHBOR_REPORT_BSSID_OFFSET];
 }
