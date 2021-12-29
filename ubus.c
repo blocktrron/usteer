@@ -493,7 +493,7 @@ usteer_ubus_add_nr_entry(struct usteer_nr *nr)
 }
 
 static void
-usteer_ubus_disassoc_add_neighbors(struct sta_info *si, enum usteer_reference_node_rating node_ref_pref)
+usteer_ubus_disassoc_add_neighbors(struct sta_info *si, enum usteer_reference_node_rating node_ref_pref, char *candidate_list, int candidate_list_len)
 {
 	struct usteer_nr *nr_buf;
 	int inserted;
@@ -504,7 +504,7 @@ usteer_ubus_disassoc_add_neighbors(struct sta_info *si, enum usteer_reference_no
 	if (!nr_buf)
 		return;
 
-	inserted = usteer_rrm_nr_list_get_for_sta(nr_buf, config.max_neighbor_reports, si, node_ref_pref);
+	inserted = usteer_rrm_nr_list_get_for_sta(nr_buf, config.max_neighbor_reports, si, node_ref_pref, candidate_list, candidate_list_len);
 
 	c = blobmsg_open_array(&b, "neighbors");
 	for (i = 0; i < inserted; i++)
@@ -517,7 +517,9 @@ int usteer_ubus_bss_transition_request(struct sta_info *si,
 				       uint8_t dialog_token,
 				       bool disassoc_imminent,
 				       bool abridged,
-				       uint8_t validity_period)
+				       uint8_t validity_period,
+				       char *candidate_list,
+				       int candidate_list_len)
 {
 	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
 
@@ -527,7 +529,7 @@ int usteer_ubus_bss_transition_request(struct sta_info *si,
 	blobmsg_add_u8(&b, "disassociation_imminent", disassoc_imminent);
 	blobmsg_add_u8(&b, "abridged", abridged);
 	blobmsg_add_u32(&b, "validity_period", validity_period);
-	usteer_ubus_disassoc_add_neighbors(si, RN_RATING_REGULAR);
+	usteer_ubus_disassoc_add_neighbors(si, RN_RATING_REGULAR, candidate_list, candidate_list_len);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "bss_transition_request", b.head, NULL, 0, 100);
 }
 
@@ -538,7 +540,7 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si)
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_u32(&b, "duration", config.roam_kick_delay);
-	usteer_ubus_disassoc_add_neighbors(si, RN_RATING_FORBID);
+	usteer_ubus_disassoc_add_neighbors(si, RN_RATING_FORBID, NULL, 0);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "wnm_disassoc_imminent", b.head, NULL, 0, 100);
 }
 

@@ -90,6 +90,32 @@ usteer_handle_remove(struct ubus_context *ctx, struct ubus_subscriber *s,
 	usteer_free_node(ctx, ln);
 }
 
+static void
+usteer_local_node_save_candidate_list(struct usteer_bss_tm_query *query, char *candidate_list_str)
+{
+	int candidate_list_str_len = strlen(candidate_list_str);
+	int candidate_list_buf_len;
+	char *candidate_list;
+
+	if (candidate_list_str_len == 0 || strlen(candidate_list_str) % 2 != 0) {
+		return;
+	}
+
+	candidate_list_buf_len = candidate_list_str_len * 2;
+
+	candidate_list = calloc(candidate_list_buf_len, sizeof(char));
+	if (!candidate_list)
+		return;
+
+	if (usteer_load_hex(candidate_list_str, candidate_list, candidate_list_buf_len) <= 0) {
+		free(candidate_list);
+		return;
+	}
+
+	query->candidate_list = candidate_list;
+	query->candidate_list_len = candidate_list_buf_len;
+}
+
 static int
 usteer_handle_bss_tm_query(struct usteer_local_node *ln, struct blob_attr *msg)
 {
@@ -126,7 +152,7 @@ usteer_handle_bss_tm_query(struct usteer_local_node *ln, struct blob_attr *msg)
 	memcpy(query->sta_addr, sta_addr, 6);
 
 	if (tb[BSS_TM_QUERY_CANDIDATE_LIST])
-		query->candidate_list = strdup(blobmsg_get_string(tb[BSS_TM_QUERY_CANDIDATE_LIST]));
+		usteer_local_node_save_candidate_list(query, blobmsg_get_string(tb[BSS_TM_QUERY_CANDIDATE_LIST]));
 
 	list_add(&query->list, &ln->bss_tm_queries);
 	uloop_timeout_set(&ln->bss_tm_queries_timeout, 1);
@@ -495,7 +521,7 @@ usteer_local_node_process_bss_tm_queries(struct uloop_timeout *timeout)
 		if (!si)
 			continue;
 
-		usteer_ubus_bss_transition_request(si, query->dialog_token, false, false, validity_period);
+		usteer_ubus_bss_transition_request(si, query->dialog_token, false, false, validity_period, query->candidate_list, query->candidate_list_len);
 	}
 
 	/* Free pending queries we can not handle */

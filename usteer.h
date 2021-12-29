@@ -116,7 +116,9 @@ usteer_rrm_nr_list_get_for_node(struct usteer_nr *nr_buf, int nr_buf_len,
 int
 usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
 			       struct sta_info *si,
-			       enum usteer_reference_node_rating node_ref_pref);
+			       enum usteer_reference_node_rating node_ref_pref,
+			       char *candidate_list,
+			       int candidate_list_len);
 
 struct usteer_scan_request {
 	int n_freq;
@@ -224,6 +226,7 @@ struct usteer_bss_tm_query {
 	uint8_t dialog_token;
 
 	char *candidate_list;
+	int candidate_list_len;
 };
 
 struct sta_info_stats {
@@ -308,7 +311,9 @@ int usteer_ubus_bss_transition_request(struct sta_info *si,
 				       uint8_t dialog_token,
 				       bool disassoc_imminent,
 				       bool abridged,
-				       uint8_t validity_period);
+				       uint8_t validity_period,
+				       char *candidate_list,
+				       int candidate_list_len);
 
 struct sta *usteer_sta_get(const uint8_t *addr, bool create);
 struct sta_info *usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create);

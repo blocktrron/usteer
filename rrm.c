@@ -22,6 +22,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#include "element.h"
 #include "node.h"
 #include "remote.h"
 #include "usteer.h"
@@ -282,10 +283,44 @@ usteer_rrm_nr_list_add_seen_remote_nodes(struct usteer_nr *nr_buf, int nr_buf_le
 	return inserted;
 }
 
+static int
+usteer_rrm_nr_list_add_candidate_list(struct usteer_nr *nr_buf, int nr_buf_len,
+				      enum usteer_reference_node_rating node_ref_pref,
+				      char *candidate_list,
+				      int candidate_list_len)
+{
+	struct usteer_node *n;
+	uint8_t *c, *bssid;
+	int nr_element_len;
+	int inserted = 0;
+	int i;
+
+	for (i = 0; (c = usteer_element_list_get_idx((uint8_t *) candidate_list, candidate_list_len, i)); i++) {
+		nr_element_len = usteer_element_length((uint8_t *) candidate_list, candidate_list_len, c);
+		if (nr_element_len <= 0)
+			continue;
+
+		bssid = usteer_nr_get_bssid(&c[2], nr_element_len - 2);
+		if (!bssid)
+			continue;
+
+		n = usteer_node_by_bssid(bssid);
+		if (!n)
+			continue;
+
+		if (usteer_rrm_nr_list_insert(nr_buf, nr_buf_len, n))
+			inserted++;
+	}
+
+	return inserted;
+}
+
 int
 usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
 			       struct sta_info *si,
-			       enum usteer_reference_node_rating node_ref_pref)
+			       enum usteer_reference_node_rating node_ref_pref,
+			       char *candidate_list,
+			       int candidate_list_len)
 {
 	struct usteer_node *node_ref = si->node;
 	int num_preferred;
@@ -297,6 +332,21 @@ usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
 
 	if (nr_buf_len == 0)
 		return 0;
+
+	/* Try to evaluate candidate list */
+	inserted += usteer_rrm_nr_list_add_candidate_list(nr_buf, nr_buf_len, node_ref_pref, candidate_list, candidate_list_len);
+	if (inserted) {
+		/* Sort list order based on load */
+		usteer_rrm_nr_list_sort(nr_buf, nr_buf_len, &nr_has_lower_load);
+
+		/* Add preferences */
+		usteer_rrm_nr_list_add_ordered_preference(nr_buf, nr_buf_len, node_ref, node_ref_pref);
+
+		/* Sort by preference */
+		usteer_rrm_nr_list_sort(nr_buf, nr_buf_len, &nr_has_higher_priority);
+
+		return inserted;
+	}
 
 	/* Add nodes based on nodes the STA have seen */
 	inserted += usteer_rrm_nr_list_add_seen_remote_nodes(nr_buf, nr_buf_len,
