@@ -336,6 +336,12 @@ usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
 	/* Try to evaluate candidate list */
 	inserted += usteer_rrm_nr_list_add_candidate_list(nr_buf, nr_buf_len, node_ref_pref, candidate_list, candidate_list_len);
 	if (inserted) {
+		/* ToDo: Consider applying the preference from the querier.
+		 * Order by it's preference first, reorder based on load and
+		 * apply new absolute order. This would retain the preference
+		 * from the node and just reorder by our known load
+		 */ 
+
 		/* Sort list order based on load */
 		usteer_rrm_nr_list_sort(nr_buf, nr_buf_len, &nr_has_lower_load);
 
