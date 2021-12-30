@@ -307,6 +307,8 @@ usteer_rrm_nr_list_add_candidate_list(struct usteer_nr *nr_buf, int nr_buf_len,
 		n = usteer_node_by_bssid(bssid);
 		if (!n)
 			continue;
+		
+		/* ToDo: consider own node preference (exclusion) */
 
 		if (usteer_rrm_nr_list_insert(nr_buf, nr_buf_len, n))
 			inserted++;
