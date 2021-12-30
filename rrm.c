@@ -333,6 +333,8 @@ usteer_rrm_nr_list_get_for_sta(struct usteer_nr *nr_buf, int nr_buf_len,
 	if (nr_buf_len == 0)
 		return 0;
 
+	/* ToDo: Prefer own node if signal & load are fine (Only if current rating is regular) */
+
 	/* Try to evaluate candidate list */
 	inserted += usteer_rrm_nr_list_add_candidate_list(nr_buf, nr_buf_len, node_ref_pref, candidate_list, candidate_list_len);
 	if (inserted) {
