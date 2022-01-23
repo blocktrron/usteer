@@ -261,6 +261,18 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_KICK,
 };
 
+enum scan_state {
+	SCAN_IDLE,
+	SCAN_START,
+	SCAN_ACTIVE_2_GHZ,
+	SCAN_ACTIVE_5_GHZ,
+	SCAN_DONE,
+};
+
+enum scan_request_source {
+	SCAN_RS_ROAM_SM = 0,
+};
+
 struct sta_info {
 	struct list_head list;
 	struct list_head node_list;
@@ -280,14 +292,20 @@ struct sta_info {
 	uint8_t roam_tries;
 	uint64_t roam_event;
 	uint64_t roam_kick;
+	bool roam_entry;
 	uint64_t roam_scan_start;
 	uint64_t roam_scan_timeout_start;
+
+	struct {
+		enum scan_state state;
+		uint8_t scan_requests;
+		uint64_t event;
+	} scan_data;
 
 	int kick_count;
 
 	uint32_t below_min_snr;
 
-	uint8_t scan_band : 1;
 	uint8_t connected : 2;
 };
 
@@ -344,9 +362,15 @@ int usteer_snr_to_signal(struct usteer_node *node, int snr);
 void usteer_local_nodes_init(struct ubus_context *ctx);
 void usteer_local_node_kick(struct usteer_local_node *ln);
 
+bool usteer_scan_sm_active(struct sta_info *si);
+bool usteer_scan_sm_request_source_active(struct sta_info *si, enum scan_request_source rs);
+void usteer_scan_sm_request_source_start(struct sta_info *si, enum scan_request_source rs);
+void usteer_scan_sm_request_source_stop(struct sta_info *si, enum scan_request_source rs);
+enum scan_state usteer_scan_sm(struct sta_info *si);
+
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
-int usteer_ubus_trigger_client_scan(struct sta_info *si);
+int usteer_ubus_send_beacon_request(struct sta_info *si, enum usteer_beacon_measurement_mode measurement_mode, int op_class, int channel);
 int usteer_ubus_notify_client_disassoc(struct sta_info *si);
 int usteer_ubus_bss_transition_request(struct sta_info *si,
 				       uint8_t dialog_token,

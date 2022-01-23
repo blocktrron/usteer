@@ -548,7 +548,7 @@ int usteer_ubus_notify_client_disassoc(struct sta_info *si)
 	return ubus_invoke(ubus_ctx, ln->obj_id, "wnm_disassoc_imminent", b.head, NULL, 0, 100);
 }
 
-int usteer_ubus_trigger_client_scan(struct sta_info *si)
+int usteer_ubus_send_beacon_request(struct sta_info *si, enum usteer_beacon_measurement_mode measurement_mode, int op_class, int channel)
 {
 	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
 
@@ -557,16 +557,15 @@ int usteer_ubus_trigger_client_scan(struct sta_info *si)
 		return 0;
 	}
 
-	si->scan_band = !si->scan_band;
-
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_string(&b, "ssid", si->node->ssid);
-	blobmsg_add_u32(&b, "mode", BEACON_MEASUREMENT_ACTIVE);
+	blobmsg_add_u32(&b, "mode", measurement_mode);
 	blobmsg_add_u32(&b, "duration", config.roam_scan_interval / 100);
-	blobmsg_add_u32(&b, "channel", 0);
-	blobmsg_add_u32(&b, "op_class", si->scan_band ? 1 : 12);
+	blobmsg_add_u32(&b, "channel", channel);
+	blobmsg_add_u32(&b, "op_class", op_class);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
+
 }
 
 void usteer_ubus_kick_client(struct sta_info *si)

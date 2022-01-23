@@ -340,6 +340,7 @@ usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 		si->roam_tries++;
 	} else {
 		si->roam_tries = 0;
+		si->roam_entry = true;
 	}
 
 	si->roam_state = state;
@@ -369,10 +370,7 @@ usteer_roam_sm_start_scan(struct sta_info *si, struct uevent *ev)
 static bool
 usteer_roam_sm_found_better_node(struct sta_info *si, struct uevent *ev, enum roam_trigger_state next_state)
 {
-	uint64_t max_age = 2 * config.roam_scan_interval;
-
-	if (max_age > current_time - si->roam_scan_start)
-		max_age = current_time - si->roam_scan_start;
+	uint64_t max_age = current_time - si->roam_scan_start;
 
 	if (find_better_candidate(si, ev, (1 << UEV_SELECT_REASON_SIGNAL), max_age)) {
 		usteer_roam_set_state(si, next_state, ev);
@@ -389,22 +387,32 @@ usteer_roam_trigger_sm(struct sta_info *si)
 		.si_cur = si,
 	};
 	uint64_t min_signal;
+	bool entry = si->roam_entry;
+	bool scan_finished = false;
 
-	min_signal = usteer_snr_to_signal(si->node, config.roam_trigger_snr);
+	si->roam_entry = false;
+	min_signal = usteer_snr_to_signal(si->node, config.roam_trigger_snr); 
+
+	/* Only request scans when in ROAM_TRIGGER_SCAN state */
+	if (si->roam_state != ROAM_TRIGGER_SCAN) {
+		usteer_scan_sm_request_source_stop(si, SCAN_RS_ROAM_SM); 
+	}
 
 	switch (si->roam_state) {
 	case ROAM_TRIGGER_SCAN:
-		if (!si->roam_tries) {
+		if (entry) {
 			si->roam_scan_start = current_time;
+			usteer_scan_sm_request_source_start(si, SCAN_RS_ROAM_SM); 
 		}
 
-		/* Check if we've found a better node regardless of the scan-interval */
-		if (usteer_roam_sm_found_better_node(si, &ev, ROAM_TRIGGER_SCAN_DONE))
-			break;
+		/* Check if scan finished */
+		scan_finished = !usteer_scan_sm_request_source_active(si, SCAN_RS_ROAM_SM);
 
-		/* Only scan every scan-interval */
-		if (current_time - si->roam_event < config.roam_scan_interval)
+		/* Check if a better node was found */
+		if (scan_finished && usteer_roam_sm_found_better_node(si, &ev, ROAM_TRIGGER_SCAN_DONE)) {
+			usteer_scan_sm_request_source_stop(si, SCAN_RS_ROAM_SM);
 			break;
+		}
 
 		/* Check if no node was found within roam_scan_tries tries */
 		if (config.roam_scan_tries && si->roam_tries >= config.roam_scan_tries) {
@@ -419,9 +427,11 @@ usteer_roam_trigger_sm(struct sta_info *si)
 			break;
 		}
 
-		/* Send beacon-request to client */
-		usteer_ubus_trigger_client_scan(si);
-		usteer_roam_sm_start_scan(si, &ev);
+		/* Scan finished and no better candidate was found. Increase roam-tries. */
+		if (scan_finished) {
+			usteer_scan_sm_request_source_start(si, SCAN_RS_ROAM_SM);
+			usteer_roam_sm_start_scan(si, &ev);
+		}
 		break;
 
 	case ROAM_TRIGGER_IDLE:
@@ -478,6 +488,7 @@ usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
 		if (si->connected != STA_CONNECTED || si->signal >= min_signal ||
 		    current_time - si->roam_kick < config.roam_trigger_interval) {
 			usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
+			usteer_scan_sm_request_source_stop(si, SCAN_RS_ROAM_SM);
 			continue;
 		}
 
@@ -592,6 +603,10 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 
 	usteer_local_node_roam_check(ln, &ev);
 	usteer_local_node_snr_kick(ln);
+
+	list_for_each_entry(si, &ln->node.sta_info, node_list) {
+		usteer_scan_sm(si);
+	}
 
 	if (!usteer_policy_load_kick_enabled(ln))
 		return;
