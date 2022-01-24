@@ -307,6 +307,11 @@ struct sta_info {
 		uint64_t timestamp;
 	} bss_transition_response;
 
+	struct {
+		uint64_t last_total;
+		uint32_t load_weight;
+	} airtime;
+
 	int kick_count;
 
 	uint32_t below_min_snr;

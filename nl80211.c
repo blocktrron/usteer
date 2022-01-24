@@ -238,6 +238,24 @@ static void nl80211_free_node(struct usteer_node *node)
 	uloop_timeout_cancel(&ln->nl80211.update);
 }
 
+static void nl80211_update_sta_airtime(struct sta_info *si, uint64_t rx_airtime, uint64_t tx_airtime)
+{
+	uint64_t total_airtime = rx_airtime + tx_airtime;
+	uint64_t airtime_delta = (rx_airtime + tx_airtime) - si->airtime.last_total;
+	float load;
+
+	if (si->airtime.last_total) {
+		if (!si->airtime.load_weight) {
+			load = airtime_delta;
+		} else {
+			load = (0.85 * si->airtime.load_weight) + (0.15 * airtime_delta);
+		}
+		si->airtime.load_weight = load;
+	}
+
+	si->airtime.last_total = total_airtime;
+}
+
 static void nl80211_update_sta(struct usteer_node *node, struct sta_info *si)
 {
 	struct nlattr *tb_sta[NL80211_STA_INFO_MAX + 1];
@@ -245,6 +263,7 @@ static void nl80211_update_sta(struct usteer_node *node, struct sta_info *si)
 	struct genlmsghdr *gnlh;
 	struct nl_msg *msg;
 	int signal = NO_SIGNAL;
+	uint64_t rx_airtime = 0, tx_airtime = 0;
 
 	if (!ln->nl80211.present)
 		return;
@@ -269,6 +288,14 @@ static void nl80211_update_sta(struct usteer_node *node, struct sta_info *si)
 
 	if (tb_sta[NL80211_STA_INFO_SIGNAL_AVG])
 		signal = (int8_t) nla_get_u8(tb_sta[NL80211_STA_INFO_SIGNAL_AVG]);
+
+	if (tb_sta[NL80211_STA_INFO_RX_DURATION] && tb_sta[NL80211_STA_INFO_TX_DURATION]) {
+		rx_airtime = (uint64_t) nla_get_u64(tb_sta[NL80211_STA_INFO_RX_DURATION]);
+		tx_airtime = (uint64_t) nla_get_u64(tb_sta[NL80211_STA_INFO_TX_DURATION]);
+	}
+
+	/* Update sta-info airtime statistics */
+	nl80211_update_sta_airtime(si, rx_airtime, tx_airtime);
 
 	usteer_sta_info_update(si, signal, true);
 
