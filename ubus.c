@@ -411,6 +411,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 			blobmsg_close_table(&b, t);
 
 			t = blobmsg_open_table(&b, "roam-state-machine");
+			blobmsg_add_string(&b, "state", usteer_roam_state_name(si->roam_state));
 			blobmsg_add_u32(&b, "tries", si->roam_tries);
 			blobmsg_add_u64(&b, "event", si->roam_event);
 			blobmsg_add_u64(&b, "kick", si->roam_kick);
@@ -419,6 +420,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 			blobmsg_close_table(&b, t);
 
 			t = blobmsg_open_table(&b, "scan-state-machine");
+			blobmsg_add_string(&b, "state", usteer_scan_state_name(si->scan_data.state));
 			blobmsg_add_u64(&b, "event", si->scan_data.event);
 			blobmsg_close_table(&b, t);
 

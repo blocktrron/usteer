@@ -380,6 +380,27 @@ usteer_roam_sm_found_better_node(struct sta_info *si, struct uevent *ev, enum ro
 	return false;
 }
 
+const char *
+usteer_roam_state_name(enum roam_trigger_state rts)
+{
+	switch (rts) {
+		case ROAM_TRIGGER_IDLE:
+			return "IDLE";
+		case ROAM_TRIGGER_SCAN:
+			return "SCAN";
+		case ROAM_TRIGGER_SCAN_DONE:
+			return "SCAN_DONE";
+		case ROAM_TRIGGER_WAIT_KICK:
+			return "WAIT_KICK";
+		case ROAM_TRIGGER_NOTIFY_KICK:
+			return "NOTIFY_KICK";
+		case ROAM_TRIGGER_KICK:
+			return "DONE";
+	}
+
+	return "UNKNOWN";
+}
+
 static bool
 usteer_roam_trigger_sm(struct sta_info *si)
 {

@@ -50,6 +50,29 @@ usteer_scan_sm_request_source_clear(struct sta_info *si)
 	si->scan_data.scan_requests = 0;
 }
 
+const char *
+usteer_scan_state_name(enum scan_state ss)
+{
+	switch (ss) {
+		case SCAN_IDLE:
+			return "IDLE";
+		case SCAN_START:
+			return "START";
+		case SCAN_ACTIVE_2_GHZ:
+			return "ACTIVE_2_GHZ";
+		case SCAN_ACTIVE_5_GHZ:
+			return "ACTIVE_5_GHZ";
+		case SCAN_PASSIVE_5_GHZ:
+			return "PASSIVE_5_GHZ";
+		case SCAN_PASSIVE_CURRENT:
+			return "PASSIVE_CURRENT";
+		case SCAN_DONE:
+			return "DONE";
+	}
+
+	return "UNKNOWN";
+}
+
 enum scan_state
 usteer_scan_sm(struct sta_info *si)
 {

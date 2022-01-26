@@ -380,6 +380,7 @@ bool usteer_scan_sm_request_source_active(struct sta_info *si, enum scan_request
 void usteer_scan_sm_request_source_start(struct sta_info *si, enum scan_request_source rs);
 void usteer_scan_sm_request_source_stop(struct sta_info *si, enum scan_request_source rs);
 enum scan_state usteer_scan_sm(struct sta_info *si);
+const char *usteer_scan_state_name(enum scan_state ss);
 
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
@@ -422,6 +423,8 @@ bool usteer_policy_node_selectable_by_sta(struct sta_info *si_ref, struct sta_in
 bool usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
 						      struct usteer_measurement_report *mr_new, uint64_t max_age);
 bool usteer_policy_load_kick_active(struct usteer_local_node *ln);
+
+const char *usteer_roam_state_name(enum roam_trigger_state rts);
 
 void config_set_interfaces(struct blob_attr *data);
 void config_get_interfaces(struct blob_buf *buf);
