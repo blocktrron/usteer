@@ -266,6 +266,7 @@ enum scan_state {
 	SCAN_START,
 	SCAN_ACTIVE_2_GHZ,
 	SCAN_ACTIVE_5_GHZ,
+	SCAN_PASSIVE_5_GHZ,
 	SCAN_DONE,
 };
 
@@ -300,6 +301,8 @@ struct sta_info {
 		enum scan_state state;
 		uint8_t scan_requests;
 		uint64_t event;
+
+		uint8_t last_passive_scan_idx;
 	} scan_data;
 
 	struct {

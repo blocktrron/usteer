@@ -53,6 +53,10 @@ usteer_scan_sm_request_source_clear(struct sta_info *si)
 enum scan_state
 usteer_scan_sm(struct sta_info *si)
 {
+	uint8_t max_passive_nodes = 5;
+	struct usteer_node *n = NULL;
+	uint32_t i;
+
 	if (current_time - si->scan_data.event < config.roam_scan_interval)
 		return si->scan_data.state;
 	
@@ -63,6 +67,7 @@ usteer_scan_sm(struct sta_info *si)
 
 	switch (si->scan_data.state) {
 		case SCAN_IDLE:
+			si->scan_data.last_passive_scan_idx = 0;
 			si->scan_data.state++;
 		case SCAN_START:
 			si->scan_data.state++;
@@ -75,6 +80,26 @@ usteer_scan_sm(struct sta_info *si)
 			usteer_ubus_send_beacon_request(si, BEACON_MEASUREMENT_ACTIVE, 115, 0);
 			si->scan_data.state++;
 			si->scan_data.event = current_time;
+			break;
+		case SCAN_PASSIVE_5_GHZ:
+			/* Perform a passive scan on 5GHz. Scan the channels of the 5 most active 5GHz nodes. */
+			for (i = 0; i <= si->scan_data.last_passive_scan_idx; i++) {
+				n = usteer_node_get_next_neighbor(si->node, n);
+				if (!n)
+					break;
+			}
+
+			if (n)
+				usteer_ubus_send_beacon_request(si, BEACON_MEASUREMENT_PASSIVE, n->op_class, n->channel);
+
+			si->scan_data.last_passive_scan_idx++;
+
+			/* Event on every scan (Tracked by scan interval) */
+			si->scan_data.event = current_time;
+
+			/* Next state if all nodes scanned */
+			if (!n || si->scan_data.last_passive_scan_idx >= max_passive_nodes)
+				si->scan_data.state++;
 			break;
 		case SCAN_DONE:
 			/* Clear all requests & enter IDLE state */
