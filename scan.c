@@ -124,6 +124,12 @@ usteer_scan_sm(struct sta_info *si)
 			if (!n || si->scan_data.last_passive_scan_idx >= max_passive_nodes)
 				si->scan_data.state++;
 			break;
+		case SCAN_PASSIVE_CURRENT:
+			/* Acquire own neighbor report */
+			usteer_ubus_send_beacon_request(si, BEACON_MEASUREMENT_PASSIVE, si->node->op_class, si->node->channel);
+			si->scan_data.event = current_time;
+			si->scan_data.state++;
+			break;
 		case SCAN_DONE:
 			/* Clear all requests & enter IDLE state */
 			usteer_scan_sm_request_source_clear(si);
