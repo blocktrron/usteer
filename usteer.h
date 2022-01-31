@@ -195,6 +195,7 @@ struct usteer_config {
 	uint32_t max_retry_band;
 	uint32_t seen_policy_timeout;
 	uint32_t measurement_report_timeout;
+	uint32_t measurement_policy_timeout;
 
 	bool assoc_steering;
 
