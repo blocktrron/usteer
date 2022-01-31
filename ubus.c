@@ -378,6 +378,32 @@ usteer_ubus_remote_info(struct ubus_context *ctx, struct ubus_object *obj,
 }
 
 static int
+usteer_ubus_get_connected_clients_add_better_candidates(struct sta_info *si)
+{
+	struct usteer_candidate_list *cl;
+	struct usteer_candidate *c;
+	void *t, *a;
+
+	cl = usteer_candidate_list_get_empty(0);
+	usteer_candidate_list_add_for_sta(cl, si, RN_RATING_EXCLUDE, 0, 0);
+
+	a = blobmsg_open_array(&b, "better-candidates");
+	for_each_candidate(cl, c) {
+		t = blobmsg_open_table(&b, "");
+		blobmsg_add_string(&b, "node", usteer_node_name(c->node));
+		blobmsg_add_u32(&b, "signal", c->signal);
+		blobmsg_add_u32(&b, "priority", c->priority);
+		blobmsg_add_u32(&b, "reasons", c->reasons);		
+		blobmsg_close_table(&b, t);
+	}
+	blobmsg_close_array(&b, a);
+
+	usteer_candidate_list_free(cl);
+
+	return 0;
+}
+
+static int
 usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *obj,
 				  struct ubus_request_data *req, const char *method,
 				  struct blob_attr *msg)
@@ -444,6 +470,8 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				blobmsg_close_table(&b, t);
 			}
 			blobmsg_close_array(&b, a);
+
+			usteer_ubus_get_connected_clients_add_better_candidates(si);
 
 			blobmsg_close_table(&b, s);
 		}
