@@ -70,6 +70,11 @@ usteer_dump_hex(char *buf, size_t buf_size, char *output)
 		sprintf(&output[i*2], "%02X", (unsigned char)buf[i]);
 }
 
+int usteer_rcpi_to_rssi(int rcpi)
+{
+	return (rcpi / 2) - 110;
+}
+
 void log_msg(char *msg)
 {
 	if (config.syslog)

@@ -48,6 +48,8 @@ extern void debug_msg_cont(int level, const char *format, ...);
 extern int usteer_load_hex(char *hexstr, char *output, int output_size);
 extern void usteer_dump_hex(char *buf, size_t buf_size, char *output);
 
+int usteer_rcpi_to_rssi(int rcpi);
+
 #define __usteer_init __attribute__((constructor))
 
 #endif
