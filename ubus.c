@@ -483,34 +483,17 @@ struct ubus_object usteer_obj = {
 };
 
 static bool
-usteer_add_nr_entry(struct usteer_node *ln, struct usteer_node *node)
+usteer_ubus_add_nr_entry(struct usteer_candidate *candidate)
 {
-	struct blobmsg_policy policy[3] = {
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-		{ .type = BLOBMSG_TYPE_STRING },
-	};
-	struct blob_attr *tb[3];
+	char *rrm_str = usteer_rrm_get_neighbor_report_data_for_candidate(candidate);
 
-	if (!node->rrm_nr)
+	if (!rrm_str)
 		return false;
 
-	if (strcmp(ln->ssid, node->ssid) != 0)
-		return false;
+	blobmsg_add_string(&b, "", rrm_str);
 
-	blobmsg_parse_array(policy, ARRAY_SIZE(tb), tb,
-			    blobmsg_data(node->rrm_nr),
-			    blobmsg_data_len(node->rrm_nr));
-	if (!tb[2])
-		return false;
-
-	blobmsg_add_field(&b, BLOBMSG_TYPE_STRING, "",
-			  blobmsg_data(tb[2]),
-			  blobmsg_data_len(tb[2]));
-	
 	return true;
 }
-
 static void
 usteer_ubus_disassoc_add_neighbors(struct sta_info *si, enum usteer_reference_node_rating node_ref_pref)
 {
@@ -529,7 +512,7 @@ usteer_ubus_disassoc_add_neighbors(struct sta_info *si, enum usteer_reference_no
 
 	c = blobmsg_open_array(&b, "neighbors");
 	for_each_candidate(cl, candidate)
-		usteer_add_nr_entry(si->node, candidate->node);	
+		usteer_ubus_add_nr_entry(candidate);	
 	blobmsg_close_array(&b, c);
 
 	usteer_candidate_list_free(cl);

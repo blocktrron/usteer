@@ -466,22 +466,22 @@ usteer_local_node_req_cb(struct ubus_request *req, int ret)
 }
 
 static bool
-usteer_add_rrm_data(struct usteer_local_node *ln, struct usteer_node *node)
+usteer_local_node_add_rrm_data(struct usteer_candidate *candidate)
 {
-	if (node == &ln->node)
+	char *rrm_str = usteer_rrm_get_neighbor_report_data_for_candidate(candidate);
+	void *c;
+
+	if (!rrm_str)
 		return false;
-
-	if (!node->rrm_nr)
-		return false;
-
-	/* Remote node only adds same SSID. Required for local-node. */
-	if (strcmp(ln->node.ssid, node->ssid) != 0)
-		return false;
-
-	blobmsg_add_field(&b, BLOBMSG_TYPE_ARRAY, "",
-			  blobmsg_data(node->rrm_nr),
-			  blobmsg_data_len(node->rrm_nr));
-
+	
+	/* Field 1 and two are the BSSID of the neighbor.
+	 * hostapd automatically sets these to the correct values
+	 */
+	c = blobmsg_open_array(&b, "");
+	blobmsg_add_string(&b, "", "");
+	blobmsg_add_string(&b, "", "");
+	blobmsg_add_string(&b, "", rrm_str);
+	blobmsg_close_array(&b, c);
 	return true;
 }
 
@@ -500,7 +500,7 @@ usteer_local_node_prepare_rrm_set(struct usteer_local_node *ln)
 
 	c = blobmsg_open_array(&b, "list");
 	for_each_candidate(cl, candidate)
-		usteer_add_rrm_data(ln, candidate->node);	
+		usteer_local_node_add_rrm_data(candidate);	
 	blobmsg_close_array(&b, c);
 
 	usteer_candidate_list_free(cl);

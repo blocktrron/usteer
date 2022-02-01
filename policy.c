@@ -112,28 +112,6 @@ usteer_policy_node_selectable_by_sta_info(struct sta_info *si_ref, struct sta_in
 	return true;
 }
 
-bool
-usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
-						 struct usteer_measurement_report *mr_new, uint64_t max_age)
-{
-	int old_signal = usteer_rcpi_to_rssi(mr_ref->beacon_report.rcpi);
-	int new_signal = usteer_rcpi_to_rssi(mr_new->beacon_report.rcpi);
-
-	if (strcmp(mr_ref->node->ssid, mr_new->node->ssid))
-		return false;
-
-	if (max_age && max_age < current_time - mr_new->timestamp)
-		return false;
-
-	if (config.measurement_policy_timeout < current_time - mr_new->timestamp)
-		return false;
-
-	if (!usteer_policy_node_check_can_connect(mr_new->node, old_signal, mr_new->node, new_signal))
-		return false;
-
-	return true;
-}
-
 uint32_t
 usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_signal, struct usteer_node *new_node, int new_signal)
 {
@@ -159,26 +137,42 @@ usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_
 	return reasons;
 }
 
-static struct usteer_candidate *
+static struct sta_info *
 find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t required_criteria, uint64_t max_age)
 {
-	struct usteer_candidate_list *list = usteer_candidate_list_get_empty(1);
-	static struct usteer_candidate candidate;
-	static struct usteer_candidate *c = NULL;
+	struct sta_info *si;
+	struct sta *sta = si_ref->sta;
+	uint32_t reasons;
 
-	if (!list)
-		return NULL;
+	list_for_each_entry(si, &sta->nodes, list) {
+		if (si == si_ref)
+			continue;
 
-	usteer_candidate_list_add_for_sta(list, si_ref, RN_RATING_EXCLUDE, required_criteria, max_age);
+		if (current_time - si->seen > config.seen_policy_timeout)
+			continue;
 
-	for_each_candidate(list, c) {
-		memcpy(&candidate, c, sizeof(candidate));
-		c = &candidate;
+		if (strcmp(si->node->ssid, si_ref->node->ssid) != 0)
+			continue;
+
+		if (max_age && max_age < current_time - si->seen)
+			continue;
+
+		reasons = usteer_policy_is_better_candidate(si_ref->node, si_ref->signal, si->node, si->signal);
+		if (!reasons)
+			continue;
+
+		if (!(reasons & required_criteria))
+			continue;
+
+		if (ev) {
+			ev->si_other = si;
+			ev->select_reasons = reasons;
+		}
+
+		return si;
 	}
 
-	usteer_candidate_list_free(list);
-
-	return  c;
+	return NULL;
 }
 
 int
@@ -500,7 +494,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 {
 	struct usteer_node *node = &ln->node;
 	struct sta_info *kick1 = NULL, *kick2 = NULL;
-	struct usteer_candidate *candidate = NULL;
+	struct sta_info *candidate = NULL;
 	struct sta_info *si;
 	struct uevent ev = {
 		.node_local = &ln->node,
@@ -544,7 +538,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 	}
 
 	list_for_each_entry(si, &ln->node.sta_info, node_list) {
-		struct usteer_candidate *tmp;
+		struct sta_info *tmp;
 
 		if (si->connected != STA_CONNECTED)
 			continue;
@@ -574,8 +568,7 @@ usteer_local_node_kick(struct usteer_local_node *ln)
 
 	ev.type = UEV_LOAD_KICK_CLIENT;
 	ev.si_cur = kick1;
-	if (candidate->si)
-		ev.si_other = candidate->si;
+	ev.si_other = candidate;
 	ev.count = kick1->kick_count;
 
 	usteer_ubus_kick_client(kick1);

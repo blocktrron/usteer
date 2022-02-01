@@ -244,8 +244,7 @@ usteer_candidate_list_add(struct usteer_candidate_list *cl, struct usteer_candid
 }
 
 static bool
-usteer_candidate_list_add_node(struct usteer_candidate_list *cl, struct usteer_node *n, struct sta_info *si,
-			       struct usteer_measurement_report *mr, int signal, uint32_t reasons)
+usteer_candidate_list_add_node(struct usteer_candidate_list *cl, struct usteer_node *n, int signal, uint32_t reasons)
 {
 	struct usteer_candidate *c;
 
@@ -259,8 +258,6 @@ usteer_candidate_list_add_node(struct usteer_candidate_list *cl, struct usteer_n
 	c->node = n;
 	c->signal = signal;
 	c->reasons = reasons;
-	c->measurement = mr;
-	c->si = si;
 
 	usteer_candidate_list_add(cl, c);
 	
@@ -268,28 +265,21 @@ usteer_candidate_list_add_node(struct usteer_candidate_list *cl, struct usteer_n
 }
 
 static bool
-usteer_candidate_list_add_better_node(struct usteer_candidate_list *cl, struct usteer_node *n, struct sta_info *si,
-				      struct usteer_measurement_report *mr, int signal, uint32_t reasons)
+usteer_candidate_list_add_better_node(struct usteer_candidate_list *cl, struct usteer_node *n, int signal, uint32_t reasons)
 {
 	struct usteer_candidate *c, *worst_candidate = NULL;
-
-	if (!n && mr) {
-		n = mr->node;
-	} else if (!n && si) {
-		n = si->node;
-	}
 
 	/* Check if node is already in candidate list */
 	if (usteer_candidate_contains_node(cl, n))
 		return false;
 
 	/* Check if max candidate-list size is not exceeded */
-	if (usteer_candidate_list_add_node(cl, n, si, mr, signal, reasons))
+	if (usteer_candidate_list_add_node(cl, n, signal, reasons))
 		return true;
 
 	/* Find the candidate with the worst signal */
 	for_each_candidate(cl, c) {
-		if (!worst_candidate || !c->signal || c->signal < worst_candidate->signal)
+		if (!worst_candidate || c->signal < worst_candidate->signal)
 			worst_candidate = c;
 	}
 
@@ -301,7 +291,7 @@ usteer_candidate_list_add_better_node(struct usteer_candidate_list *cl, struct u
 	free(worst_candidate);
 
 	/* Add candidate to list */
-	return usteer_candidate_list_add_node(cl, n, si, mr, signal, reasons);
+	return usteer_candidate_list_add_node(cl, n, signal, reasons);
 }
 
 static int
@@ -320,7 +310,7 @@ usteer_candidate_list_add_local_nodes(struct usteer_candidate_list *cl, struct u
 			continue;
 		}
 
-		if (usteer_candidate_list_add_node(cl, node, NULL, NULL, 0, 0)) {
+		if (usteer_candidate_list_add_node(cl, node, 0, 0)) {
 			inserted++;
 		}
 	}
@@ -341,7 +331,7 @@ usteer_candidate_list_add_remote_nodes(struct usteer_candidate_list *cl, struct 
 			break;
 		}
 
-		if (usteer_candidate_list_add_node(cl, node, NULL, NULL, 0, 0)) {
+		if (usteer_candidate_list_add_node(cl, node, 0, 0)) {
 			inserted++;
 		}
 		last_remote_neighbor = node;
@@ -411,40 +401,7 @@ usteer_candidate_list_add_sta_seen(struct usteer_candidate_list *cl, struct sta_
 		if (!reasons)
 			continue;
 
-		usteer_candidate_list_add_better_node(cl, foreign_si->node, si, NULL, foreign_si->signal, reasons);
-	}
-}
-
-static void
-usteer_candidate_list_add_sta_reported(struct usteer_candidate_list *cl, struct sta_info *si,
-				       enum usteer_reference_node_rating node_ref_rating,
-				       uint32_t required_criteria, uint64_t signal_max_age)
-{
-	struct usteer_measurement_report *mr, *own_mr;
-	int current_signal;
-	uint32_t reasons;
-	int signal;
-
-	/* Check if we have a measurement of the current connection, */
-	own_mr = usteer_measurement_report_get(si->sta, si->node, false);
-	if (!own_mr)
-		return;
-
-	current_signal = usteer_rcpi_to_rssi(own_mr->beacon_report.rcpi);
-
-	list_for_each_entry(mr, &si->sta->measurements, sta_list) {
-		if (!usteer_policy_node_selectable_by_sta_measurement(own_mr, mr, signal_max_age))
-			continue;
-
-		signal = usteer_rcpi_to_rssi(mr->beacon_report.rcpi);
-
-		reasons = usteer_candidate_list_should_add_node(si->node, current_signal, mr->node,
-								signal, node_ref_rating,
-								required_criteria);
-		if (!reasons)
-			continue;
-
-		usteer_candidate_list_add_better_node(cl, mr->node, NULL, mr, signal, reasons);
+		usteer_candidate_list_add_better_node(cl, foreign_si->node, foreign_si->signal, reasons);
 	}
 }
 
@@ -453,9 +410,6 @@ usteer_candidate_list_add_for_sta(struct usteer_candidate_list *cl, struct sta_i
 				  enum usteer_reference_node_rating node_ref_rating,
 				  uint32_t required_criteria, uint64_t signal_max_age)
 {
-	/* Add all nodes the STA has reported */
-	usteer_candidate_list_add_sta_reported(cl, si, node_ref_rating, required_criteria, signal_max_age);
-
 	/* Add all nodes we have seen the STA on */
 	usteer_candidate_list_add_sta_seen(cl, si, node_ref_rating, required_criteria, signal_max_age);
 
