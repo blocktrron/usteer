@@ -82,13 +82,39 @@ over_min_signal(struct usteer_node *node, int signal)
 	return true;
 }
 
-uint32_t
-usteer_policy_is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
+static bool
+usteer_policy_node_check_can_connect(struct usteer_node *current_node, int current_signal,
+				     struct usteer_node *new_node, int new_signal)
 {
-	struct usteer_node *current_node = si_cur->node;
-	struct usteer_node *new_node = si_new->node;
-	int current_signal = si_cur->signal;
-	int new_signal = si_new->signal;
+	if (!below_max_assoc(new_node))
+		return false;
+
+	if (!over_min_signal(new_node, new_signal))
+		return false;
+	
+	if (strcmp(new_node->ssid, current_node->ssid) != 0)
+		return false;
+
+	return true; 
+}
+
+bool
+usteer_policy_node_selectable_by_sta_info(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age)
+{
+	if (strcmp(si_ref->node->ssid, si_new->node->ssid))
+		return false;
+	if (max_age && max_age < current_time - si_new->seen)
+		return false;
+	if (config.seen_policy_timeout < current_time - si_new->seen)
+		return false;
+	if (!usteer_policy_node_check_can_connect(si_ref->node, si_ref->signal, si_ref->node, si_ref->signal))
+		return false;
+	return true;
+}
+
+uint32_t
+usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_signal, struct usteer_node *new_node, int new_signal)
+{
 	uint32_t reasons = 0;
 
 	if (!below_max_assoc(new_node))
@@ -131,7 +157,7 @@ find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t requi
 		if (max_age && max_age < current_time - si->seen)
 			continue;
 
-		reasons = usteer_policy_is_better_candidate(si_ref, si);
+		reasons = usteer_policy_is_better_candidate(si_ref->node, si_ref->signal, si->node, si->signal);
 		if (!reasons)
 			continue;
 

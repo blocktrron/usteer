@@ -436,31 +436,22 @@ usteer_add_rrm_data(struct usteer_local_node *ln, struct usteer_node *node)
 static void
 usteer_local_node_prepare_rrm_set(struct usteer_local_node *ln)
 {
-	struct usteer_node *node, *last_remote_neighbor = NULL;
-	int i = 0;
+	struct usteer_candidate *candidate;
+	struct usteer_candidate_list *cl;
 	void *c;
 
+	cl = usteer_candidate_list_get_empty(config.max_neighbor_reports);
+	if (!cl)
+		return;
+
+	usteer_candidate_list_add_for_node(cl, &ln->node, RN_RATING_EXCLUDE);
+
 	c = blobmsg_open_array(&b, "list");
-	for_each_local_node(node) {
-		if (i >= config.max_neighbor_reports)
-			break;
-		if (usteer_add_rrm_data(ln, node))
-			i++;
-	}
-
-	while (i < config.max_neighbor_reports) {
-		node = usteer_node_get_next_neighbor(&ln->node, last_remote_neighbor);
-		if (!node) {
-			/* No more nodes available */
-			break;
-		}
-
-		last_remote_neighbor = node;
-		if (usteer_add_rrm_data(ln, node))
-			i++;
-	}
-		
+	for_each_candidate(cl, candidate)
+		usteer_add_rrm_data(ln, candidate->node);	
 	blobmsg_close_array(&b, c);
+
+	usteer_candidate_list_free(cl);
 }
 
 static void
