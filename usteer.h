@@ -376,6 +376,8 @@ int usteer_candidate_list_add_for_sta(struct usteer_candidate_list *cl, struct s
 				      enum usteer_reference_node_rating node_ref_rating,
 				      uint32_t required_criteria, uint64_t signal_max_age);
 
+char * usteer_rrm_get_neighbor_report_data_for_candidate(struct usteer_candidate *c);
+
 void config_set_interfaces(struct blob_attr *data);
 void config_get_interfaces(struct blob_buf *buf);
 
