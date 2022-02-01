@@ -99,6 +99,39 @@ struct usteer_node {
 	uint64_t created;
 };
 
+struct usteer_candidate {
+	struct list_head list;
+
+	/* Sta-Info and measurement are optional.
+	 * A candidate might have neither of those,
+	 * e.g. if it originates from a STAs candidate-list.
+	 */
+	struct usteer_measurement_report *measurement;
+	struct sta_info *si;
+
+	struct usteer_node *node;
+	int signal;
+
+	uint8_t priority;
+	uint32_t reasons;
+};
+
+struct usteer_candidate_list {
+	struct list_head candidates;
+
+	int max_length;
+};
+
+enum usteer_reference_node_rating {
+	RN_RATING_EXCLUDE,
+	RN_RATING_FORBID,
+	RN_RATING_REGULAR,
+	RN_RATING_PREFER,
+};
+
+#define for_each_candidate(cl, c)			\
+	list_for_each_entry(c, &cl->candidates, list)
+
 struct usteer_scan_request {
 	int n_freq;
 	int *freq;
@@ -306,7 +339,8 @@ int usteer_snr_to_signal(struct usteer_node *node, int snr);
 void usteer_local_nodes_init(struct ubus_context *ctx);
 void usteer_local_node_kick(struct usteer_local_node *ln);
 
-uint32_t usteer_policy_is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new);
+bool usteer_policy_node_selectable_by_sta_info(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age);
+uint32_t usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_signal, struct usteer_node *new_node, int new_signal);
 
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
@@ -339,6 +373,15 @@ struct usteer_node *usteer_node_by_bssid(uint8_t *bssid);
 
 struct usteer_node *usteer_node_get_next_neighbor(struct usteer_node *current_node, struct usteer_node *last);
 bool usteer_check_request(struct sta_info *si, enum usteer_event_type type);
+
+struct usteer_candidate_list *usteer_candidate_list_get_empty(int max_length);
+void usteer_candidate_list_free(struct usteer_candidate_list *cl);
+int usteer_candidate_list_len(struct usteer_candidate_list *cl);
+int usteer_candidate_list_add_for_node(struct usteer_candidate_list *cl, struct usteer_node *node_ref,
+				       enum usteer_reference_node_rating node_ref_rating);
+int usteer_candidate_list_add_for_sta(struct usteer_candidate_list *cl, struct sta_info *si,
+				      enum usteer_reference_node_rating node_ref_rating,
+				      uint32_t required_criteria, uint64_t signal_max_age);
 
 void config_set_interfaces(struct blob_attr *data);
 void config_get_interfaces(struct blob_buf *buf);
