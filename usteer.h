@@ -306,6 +306,8 @@ int usteer_snr_to_signal(struct usteer_node *node, int snr);
 void usteer_local_nodes_init(struct ubus_context *ctx);
 void usteer_local_node_kick(struct usteer_local_node *ln);
 
+uint32_t usteer_policy_is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new);
+
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
 int usteer_ubus_trigger_client_scan(struct sta_info *si);

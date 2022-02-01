@@ -82,8 +82,8 @@ over_min_signal(struct usteer_node *node, int signal)
 	return true;
 }
 
-static uint32_t
-is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
+uint32_t
+usteer_policy_is_better_candidate(struct sta_info *si_cur, struct sta_info *si_new)
 {
 	struct usteer_node *current_node = si_cur->node;
 	struct usteer_node *new_node = si_new->node;
@@ -131,7 +131,7 @@ find_better_candidate(struct sta_info *si_ref, struct uevent *ev, uint32_t requi
 		if (max_age && max_age < current_time - si->seen)
 			continue;
 
-		reasons = is_better_candidate(si_ref, si);
+		reasons = usteer_policy_is_better_candidate(si_ref, si);
 		if (!reasons)
 			continue;
 
