@@ -46,6 +46,9 @@ struct uevent {
 	struct usteer_node *node_cur;
 	struct usteer_node *node_other;
 
+	struct usteer_measurement_report *measurement_cur;
+	struct usteer_measurement_report *measurement_other;	
+
 	unsigned int count;
 
 	struct {

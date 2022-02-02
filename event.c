@@ -77,6 +77,9 @@ usteer_event_send_ubus(struct uevent *ev)
 
 	if (ev->si_cur)
 		blobmsg_add_u32(&b, "signal", (int32_t)ev->si_cur->signal);
+	
+	if (ev->measurement_cur)
+		blobmsg_add_u32(&b, "rcpi", (int32_t)ev->measurement_cur->beacon_report.rcpi);
 
 	if (ev->reason)
 		blobmsg_add_string(&b, "reason", uev_reason[ev->reason]);
@@ -111,6 +114,8 @@ usteer_event_send_ubus(struct uevent *ev)
 		blobmsg_add_string(&b, "name", usteer_node_name(ev->node_other));
 		if (ev->si_other)
 			blobmsg_add_u32(&b, "signal", (int32_t)ev->si_other->signal);
+		if (ev->measurement_other)
+			blobmsg_add_u32(&b, "rcpi", (int32_t)ev->measurement_other->beacon_report.rcpi);
 		usteer_event_add_node_status(ev->node_other);
 		blobmsg_close_table(&b, c);
 	}
@@ -155,6 +160,8 @@ usteer_event_log(struct uevent *ev)
 		cur += snprintf(cur, end - cur, " reason=%s", uev_reason[ev->reason]);
 	if (ev->si_cur)
 		cur += snprintf(cur, end - cur, " signal=%d", ev->si_cur->signal);
+	if (ev->measurement_cur)
+		cur += snprintf(cur, end - cur, " rcpi=%d", (int32_t)ev->measurement_cur->beacon_report.rcpi);
 	if (ev->threshold.ref)
 		cur += snprintf(cur, end - cur, " thr=%d/%d", ev->threshold.cur, ev->threshold.ref);
 	if (ev->count)
@@ -180,6 +187,11 @@ usteer_event_log(struct uevent *ev)
 		if (ev->si_other)
 			cur += snprintf(cur, end - cur, " remote_signal=%d",
 					ev->si_other->signal);
+
+		if (ev->measurement_other)
+			cur += snprintf(cur, end - cur, " remote_rcpi=%d",
+					(int32_t)ev->measurement_other->beacon_report.rcpi);
+
 		cur += usteer_event_log_node(cur, end - cur, "remote_", ev->node_other);
 	}
 
@@ -201,11 +213,21 @@ void usteer_event(struct uevent *ev)
 			ev->sta = ev->si_cur->sta;
 	}
 
+	if (ev->measurement_cur) {
+		if (!ev->node_local)
+			ev->node_local = ev->measurement_cur->node;
+		if (!ev->sta)
+			ev->sta = ev->measurement_cur->sta;
+	}
+
 	if (!ev->node_local && ev->node_cur)
 		ev->node_local = ev->node_cur;
 
 	if (ev->si_other && ev->node_cur && !ev->node_other)
 		ev->node_other = ev->si_other->node;
+	
+	if (ev->measurement_other && ev->node_cur && !ev->node_other)
+		ev->node_other = ev->measurement_other->node;
 
 	usteer_event_send_ubus(ev);
 	usteer_event_log(ev);
