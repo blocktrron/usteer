@@ -341,6 +341,8 @@ void usteer_local_nodes_init(struct ubus_context *ctx);
 void usteer_local_node_kick(struct usteer_local_node *ln);
 
 bool usteer_policy_node_selectable_by_sta_info(struct sta_info *si_ref, struct sta_info *si_new, uint64_t max_age);
+bool usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
+						      struct usteer_measurement_report *mr_new, uint64_t max_age);
 uint32_t usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_signal, struct usteer_node *new_node, int new_signal);
 
 void usteer_ubus_init(struct ubus_context *ctx);

@@ -112,6 +112,28 @@ usteer_policy_node_selectable_by_sta_info(struct sta_info *si_ref, struct sta_in
 	return true;
 }
 
+bool
+usteer_policy_node_selectable_by_sta_measurement(struct usteer_measurement_report *mr_ref,
+						 struct usteer_measurement_report *mr_new, uint64_t max_age)
+{
+	int old_signal = usteer_rcpi_to_rssi(mr_ref->beacon_report.rcpi);
+	int new_signal = usteer_rcpi_to_rssi(mr_new->beacon_report.rcpi);
+
+	if (strcmp(mr_ref->node->ssid, mr_new->node->ssid))
+		return false;
+
+	if (max_age && max_age < current_time - mr_new->timestamp)
+		return false;
+
+	if (config.measurement_policy_timeout < current_time - mr_new->timestamp)
+		return false;
+
+	if (!usteer_policy_node_check_can_connect(mr_new->node, old_signal, mr_new->node, new_signal))
+		return false;
+
+	return true;
+}
+
 uint32_t
 usteer_policy_is_better_candidate(struct usteer_node *current_node, int current_signal, struct usteer_node *new_node, int new_signal)
 {

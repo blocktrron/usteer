@@ -405,11 +405,47 @@ usteer_candidate_list_add_sta_seen(struct usteer_candidate_list *cl, struct sta_
 	}
 }
 
+static void
+usteer_candidate_list_add_sta_reported(struct usteer_candidate_list *cl, struct sta_info *si,
+				       enum usteer_reference_node_rating node_ref_rating,
+				       uint32_t required_criteria, uint64_t signal_max_age)
+{
+	struct usteer_measurement_report *mr, *own_mr;
+	int current_signal;
+	uint32_t reasons;
+	int signal;
+
+	/* Check if we have a measurement of the current connection, */
+	own_mr = usteer_measurement_report_get(si->sta, si->node, false);
+	if (!own_mr)
+		return;
+
+	current_signal = usteer_rcpi_to_rssi(own_mr->beacon_report.rcpi);
+
+	list_for_each_entry(mr, &si->sta->measurements, sta_list) {
+		if (!usteer_policy_node_selectable_by_sta_measurement(own_mr, mr, signal_max_age))
+			continue;
+
+		signal = usteer_rcpi_to_rssi(mr->beacon_report.rcpi);
+
+		reasons = usteer_candidate_list_should_add_node(si->node, current_signal, mr->node,
+								signal, node_ref_rating,
+								required_criteria);
+		if (!reasons)
+			continue;
+
+		usteer_candidate_list_add_better_node(cl, mr->node, NULL, mr, signal, reasons);
+	}
+}
+
 int
 usteer_candidate_list_add_for_sta(struct usteer_candidate_list *cl, struct sta_info *si,
 				  enum usteer_reference_node_rating node_ref_rating,
 				  uint32_t required_criteria, uint64_t signal_max_age)
 {
+	/* Add all nodes the STA has reported */
+	usteer_candidate_list_add_sta_reported(cl, si, node_ref_rating, required_criteria, signal_max_age);
+
 	/* Add all nodes we have seen the STA on */
 	usteer_candidate_list_add_sta_seen(cl, si, node_ref_rating, required_criteria, signal_max_age);
 
