@@ -187,6 +187,9 @@ struct usteer_config {
 
 	uint32_t roam_kick_delay;
 
+	uint32_t band_steering_interval;
+	int32_t band_steering_min_snr; 
+
 	uint32_t initial_connect_delay;
 
 	bool load_kick_enabled;
@@ -251,6 +254,10 @@ struct sta_info {
 		uint8_t status_code;
 		uint64_t timestamp;
 	} bss_transition_response;
+
+	struct {
+		bool below_snr;
+	} band_steering;
 
 	uint64_t kick_time;
 
@@ -317,10 +324,14 @@ int usteer_local_node_get_beacon_interval(struct usteer_local_node *ln);
 
 bool usteer_policy_node_below_max_assoc(struct usteer_node *node);
 
+void usteer_band_steering_perform_steer(struct usteer_local_node *ln);
+void usteer_band_steering_sta_update(struct sta_info *si);
+
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
 int usteer_ubus_trigger_client_scan(struct sta_info *si);
 int usteer_ubus_notify_client_disassoc(struct sta_info *si);
+int usteer_ubus_band_steering_request(struct sta_info *si);
 int usteer_ubus_bss_transition_request(struct sta_info *si,
 				       uint8_t dialog_token,
 				       bool disassoc_imminent,
