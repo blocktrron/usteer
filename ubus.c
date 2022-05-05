@@ -555,6 +555,65 @@ usteer_ubus_update_node_data(struct ubus_context *ctx, struct ubus_object *obj,
 	return 0;
 }
 
+enum {
+	STEER_CLIENT_ADDR,
+	STEER_CLIENT_BSSID,
+	__STEER_CLIENT_MAX,
+};
+
+static const struct blobmsg_policy steer_client_policy[] = {
+	[STEER_CLIENT_ADDR] = { "addr", BLOBMSG_TYPE_STRING },
+	[STEER_CLIENT_BSSID] = { "bssid", BLOBMSG_TYPE_STRING },
+};
+
+static int
+usteer_ubus_steer_client(struct ubus_context *ctx, struct ubus_object *obj,
+			 struct ubus_request_data *req, const char *method,
+			 struct blob_attr *msg)
+{
+	struct blob_attr *tb[__STEER_CLIENT_MAX];
+	struct usteer_node *node, *ln;
+	struct sta_info *si = NULL;
+	struct sta *sta;
+	uint8_t *addr;
+
+	blobmsg_parse(steer_client_policy, __STEER_CLIENT_MAX, tb, blob_data(msg), blob_len(msg));
+
+	if (!tb[STEER_CLIENT_ADDR] || !tb[STEER_CLIENT_BSSID])
+		return UBUS_STATUS_INVALID_ARGUMENT;
+
+	/* Get STA */
+	addr = (uint8_t *) ether_aton(blobmsg_get_string(tb[STEER_CLIENT_ADDR]));
+	if (!addr)
+		return UBUS_STATUS_INVALID_ARGUMENT;
+
+	sta = usteer_sta_get(addr, false);
+	if (!sta)
+		return UBUS_STATUS_NOT_FOUND;
+
+	for_each_local_node(ln) {
+		si = usteer_sta_info_get(sta, ln, false);
+		if (si && si->connected == STA_CONNECTED)
+			break;
+	}
+
+	if (!si)
+		return UBUS_STATUS_NOT_FOUND;
+
+	/* Get Node */
+	addr = (uint8_t *) ether_aton(blobmsg_get_string(tb[STEER_CLIENT_BSSID]));
+	if (!addr)
+		return UBUS_STATUS_INVALID_ARGUMENT;
+
+	node = usteer_node_by_bssid(addr);
+	if (!node)
+		return UBUS_STATUS_NOT_FOUND;
+
+	usteer_ubus_bss_transition_request(si, 1, false, false, 100, node);
+
+	return 0;
+}
+
 static const struct ubus_method usteer_methods[] = {
 	UBUS_METHOD_NOARG("local_info", usteer_ubus_local_info),
 	UBUS_METHOD_NOARG("remote_hosts", usteer_ubus_remote_hosts),
@@ -567,6 +626,7 @@ static const struct ubus_method usteer_methods[] = {
 	UBUS_METHOD("update_config", usteer_ubus_set_config, config_policy),
 	UBUS_METHOD("set_node_data", usteer_ubus_update_node_data, set_node_data_policy),
 	UBUS_METHOD("delete_node_data", usteer_ubus_update_node_data, del_node_data_policy),
+	UBUS_METHOD("steer_client", usteer_ubus_steer_client, steer_client_policy),
 };
 
 static struct ubus_object_type usteer_obj_type =
