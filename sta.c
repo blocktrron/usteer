@@ -36,6 +36,7 @@ usteer_sta_del(struct sta *sta)
 
 	avl_delete(&stations, &sta->avl);
 	usteer_measurement_report_sta_cleanup(sta);
+	usteer_candidate_sta_cleanup(sta);
 	free(sta);
 }
 
@@ -142,6 +143,7 @@ usteer_sta_get(const uint8_t *addr, bool create)
 	avl_insert(&stations, &sta->avl);
 	INIT_LIST_HEAD(&sta->nodes);
 	INIT_LIST_HEAD(&sta->measurements);
+	INIT_LIST_HEAD(&sta->candidates);
 
 	return sta;
 }

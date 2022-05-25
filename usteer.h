@@ -74,6 +74,7 @@ struct usteer_node {
 	struct avl_node avl;
 	struct list_head sta_info;
 	struct list_head measurements;
+	struct list_head candidates;
 
 	enum usteer_node_type type;
 
@@ -281,6 +282,7 @@ struct sta {
 	struct avl_node avl;
 	struct list_head nodes;
 	struct list_head measurements;
+	struct list_head candidates;
 
 	uint8_t seen_2ghz : 1;
 	uint8_t seen_5ghz : 1;
@@ -303,6 +305,33 @@ struct usteer_measurement_report {
 
 	uint8_t rcpi;
 	uint8_t rsni;
+};
+
+enum usteer_candidate_information_source {
+	CIS_STA_INFO,
+	CIS_MEASUREMENT,
+};
+
+struct usteer_candidate {
+	struct usteer_timeout timeout;
+
+	struct list_head list;
+
+	struct usteer_node *node;
+	struct list_head node_list;
+
+	struct sta *sta;
+	struct list_head sta_list;
+
+	enum usteer_candidate_information_source information_source;
+	uint64_t information_timestamp;
+
+
+	int signal;
+	int snr;
+
+	uint16_t estimated_throughput;
+	uint16_t score;
 };
 
 extern struct ubus_context *ubus_ctx;
@@ -398,6 +427,45 @@ void usteer_measurement_report_del(struct usteer_measurement_report *mr);
 struct usteer_measurement_report *
 usteer_measurement_report_add(struct sta *sta, struct usteer_node *node, uint8_t rcpi, uint8_t rsni, uint64_t timestamp);
 
+void usteer_candidate_node_cleanup(struct usteer_node *node);
+void usteer_candidate_sta_cleanup(struct sta *sta);
+struct usteer_candidate *usteer_candidate_get(struct sta *sta, struct usteer_node *node, bool create);
+void usteer_candidate_del(struct usteer_candidate *c);
+void usteer_candidate_list_sort(struct sta *sta);
+
 
 int usteer_ubus_trigger_link_measurement(struct sta_info *si);
+
+static inline void
+usteer_list_swap(struct list_head *elem1, struct list_head *elem2)
+{
+	struct list_head *elem1_prev = elem1->prev;
+	struct list_head *elem1_next = elem1->next;
+
+	struct list_head *elem2_prev = elem2->prev;
+	struct list_head *elem2_next = elem2->next;
+
+	if ((elem1_next == elem2 && elem2_prev ==elem1) || (elem2_next == elem1 && elem1_prev == elem2)) {
+		/* Adjacent */
+
+		elem1->prev = elem1_next;
+		elem1->next = elem2_next;
+
+		elem2->prev = elem1_prev;
+		elem2->next = elem2_prev;
+	} else {
+		elem1->prev = elem2_prev;
+		elem1->next = elem2_next;
+
+		elem2->prev = elem1_prev;
+		elem2->next = elem1_next;
+	}
+
+	/* Update adjacent heads */
+	elem1->prev->next = elem1;
+	elem1->next->prev = elem1;
+
+	elem2->prev->next = elem2;
+	elem2->next->prev = elem2;
+}
 #endif
