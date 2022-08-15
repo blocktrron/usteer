@@ -400,6 +400,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				  struct blob_attr *msg)
 {
 	struct usteer_measurement_report *mr;
+	struct usteer_candidate *c;
 	struct usteer_node *node;
 	struct sta_info *si;
 	void *n, *s, *t, *a;
@@ -465,6 +466,20 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				blobmsg_add_u32(&b, "rsni", mr->rsni);
 				blobmsg_add_u32(&b, "rssi", usteer_measurement_get_rssi(mr));
 				blobmsg_add_u64(&b, "age", current_time - mr->timestamp);
+				blobmsg_close_table(&b, t);
+			}
+			blobmsg_close_array(&b, a);
+
+			/* Candidates */
+			a = blobmsg_open_array(&b, "candidates");
+			list_for_each_entry(c, &si->sta->candidates, sta_list) {
+				t = blobmsg_open_table(&b, "");
+				blobmsg_add_string(&b, "node", usteer_node_name(c->node));
+				blobmsg_add_u32(&b, "signal", c->signal);
+				blobmsg_add_u32(&b, "snr", c->snr);
+				blobmsg_add_u32(&b, "estimated_throughput", c->estimated_throughput);
+				blobmsg_add_u32(&b, "score", c->score);
+				blobmsg_add_u64(&b, "age", current_time - c->information_timestamp);
 				blobmsg_close_table(&b, t);
 			}
 			blobmsg_close_array(&b, a);
