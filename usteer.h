@@ -41,6 +41,8 @@
 #define APMGR_BUFLEN		(64 * 1024)
 
 #define DIV_ROUND_UP(n,d) (((n) + (d) - 1) / (d))
+#define MIN(a,b)	(a < b ? a : b)
+#define MAX(a,b)	(a > b ? a : b)
 
 enum usteer_event_type {
 	EVENT_TYPE_PROBE,
@@ -435,6 +437,7 @@ struct usteer_candidate *usteer_candidate_get(struct sta *sta, struct usteer_nod
 void usteer_candidate_del(struct usteer_candidate *c);
 void usteer_candidate_list_sort(struct sta *sta);
 
+void usteer_sta_generate_candidate_list(struct sta_info *si);
 
 int usteer_ubus_trigger_link_measurement(struct sta_info *si);
 
