@@ -167,6 +167,23 @@ usteer_snr_to_signal(struct usteer_node *node, int snr)
 	return noise + snr;
 }
 
+int
+usteer_signal_to_snr(struct usteer_node *node, int signal)
+{
+	int noise = -95;
+
+	if (signal > 0)
+		return noise;
+
+	if (node->noise)
+		noise = node->noise;
+
+	if (signal < noise)
+		return 3;
+
+	return abs(noise - signal);
+}
+
 bool
 usteer_check_request(struct sta_info *si, enum usteer_event_type type)
 {
