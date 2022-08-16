@@ -756,7 +756,7 @@ usteer_local_node_process_bss_tm_queries(struct uloop_timeout *timeout)
 		if (!si)
 			continue;
 
-		usteer_ubus_bss_transition_request(si, query->dialog_token, false, false, validity_period, NULL);
+		usteer_ubus_bss_transition_request(si, query->dialog_token, false, false, validity_period);
 	}
 
 	/* Free pending queries we can not handle */
