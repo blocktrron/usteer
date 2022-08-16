@@ -705,6 +705,7 @@ usteer_local_node_update(struct uloop_timeout *timeout)
 	struct usteer_local_node *ln;
 	struct usteer_node_handler *h;
 	struct usteer_node *node;
+	struct sta_info *si;
 
 	ln = container_of(timeout, struct usteer_local_node, update);
 	node = &ln->node;
@@ -714,6 +715,12 @@ usteer_local_node_update(struct uloop_timeout *timeout)
 			continue;
 
 		h->update_node(node);
+	}
+
+	/* Update candidate-lists for connected clients */
+	list_for_each_entry(si, &ln->node.sta_info, node_list) {
+		if (si->connected)
+			usteer_sta_generate_candidate_list(si);
 	}
 
 	usteer_local_node_state_reset(ln);
