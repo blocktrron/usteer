@@ -190,6 +190,8 @@ struct usteer_config {
 
 	uint32_t roam_kick_delay;
 
+	uint32_t roam_candidate_selection_factor;
+
 	uint32_t band_steering_interval;
 	int32_t band_steering_min_snr; 
 

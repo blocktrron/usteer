@@ -99,6 +99,10 @@ config usteer
 	# Timeout (ms) for client roam requests. usteer will kick the client after this times out.
 	#option roam_kick_delay 10000
 
+	# Factor in percent by which a candidate node has to be better evaluated than the current connection
+	# to be considered a better suited connection candidate
+	#option roam_candidate_selection_factor 30
+
 	# Minimum signal strength difference until AP steering policy is active
 	#option signal_diff_threshold 0
 

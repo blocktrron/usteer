@@ -174,6 +174,7 @@ struct cfg_item {
 	_cfg(I32, roam_trigger_snr), \
 	_cfg(U32, roam_trigger_interval), \
 	_cfg(U32, roam_kick_delay), \
+	_cfg(U32, roam_candidate_selection_factor), \
 	_cfg(U32, signal_diff_threshold), \
 	_cfg(U32, initial_connect_delay), \
 	_cfg(BOOL, load_kick_enabled), \
