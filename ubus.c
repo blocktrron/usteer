@@ -401,7 +401,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				  struct blob_attr *msg)
 {
 	struct usteer_measurement_report *mr;
-	struct usteer_candidate *c;
+	struct usteer_candidate *c, *own_c;
 	struct usteer_node *node;
 	struct sta_info *si;
 	void *n, *s, *t, *a;
@@ -472,6 +472,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 			blobmsg_close_array(&b, a);
 
 			/* Candidates */
+			own_c = usteer_candidate_get(si->sta, node, false);
 			a = blobmsg_open_array(&b, "candidates");
 			list_for_each_entry(c, &si->sta->candidates, sta_list) {
 				t = blobmsg_open_table(&b, "");
@@ -481,6 +482,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				blobmsg_add_u32(&b, "estimated_throughput", c->estimated_throughput);
 				blobmsg_add_u32(&b, "score", c->score);
 				blobmsg_add_u64(&b, "age", current_time - c->information_timestamp);
+				blobmsg_add_u8(&b, "better", own_c ? usteer_policy_is_better_candidate(own_c, c) : 0);
 				blobmsg_close_table(&b, t);
 			}
 			blobmsg_close_array(&b, a);
