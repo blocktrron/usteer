@@ -675,7 +675,7 @@ usteer_local_node_state_next(struct uloop_timeout *timeout)
 static void
 usteer_local_node_request_link_measurement(struct usteer_local_node *ln)
 {
-	unsigned int min_count = DIV_ROUND_UP(config.link_measurement_interval, config.local_sta_update);
+	unsigned int min_count = DIV_ROUND_UP(config.measurement_report_timeout / 2, config.local_sta_update);
 	struct usteer_node *node;
 	struct sta_info *si;
 
@@ -687,9 +687,6 @@ usteer_local_node_request_link_measurement(struct usteer_local_node *ln)
 	}
 	
 	ln->link_measurement_tries = 0;
-
-	if (!config.link_measurement_interval)
-		return;
 
 	list_for_each_entry(si, &node->sta_info, node_list) {
 		if (si->connected != STA_CONNECTED)

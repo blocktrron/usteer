@@ -102,8 +102,6 @@ void usteer_init_defaults(void)
 	config.band_steering_interval = 120000;
 	config.band_steering_min_snr = -60;
 
-	config.link_measurement_interval = 30000;
-
 	config.probe_steering = 0;
 
 	config.roam_kick_delay = 10000;

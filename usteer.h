@@ -197,8 +197,6 @@ struct usteer_config {
 	uint32_t band_steering_interval;
 	int32_t band_steering_min_snr; 
 
-	uint32_t link_measurement_interval;
-
 	uint32_t initial_connect_delay;
 
 	bool load_kick_enabled;
