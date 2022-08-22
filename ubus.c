@@ -305,6 +305,8 @@ void usteer_dump_node(struct blob_buf *buf, struct usteer_node *node)
 	blobmsg_add_u32(buf, "target", node->roam_events.target);
 	blobmsg_close_table(buf, roam_events);
 
+	blobmsg_add_u64(buf, "age", current_time - node->created);
+
 	if (node->rrm_nr)
 		blobmsg_add_field(buf, BLOBMSG_TYPE_ARRAY, "rrm_nr",
 				  blobmsg_data(node->rrm_nr),
