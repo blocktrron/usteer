@@ -269,7 +269,7 @@ usteer_roam_trigger_sm(struct usteer_local_node *ln, struct sta_info *si)
 		if (config.roam_scan_tries && si->roam_tries >= config.roam_scan_tries) {
 			if (!config.roam_scan_timeout) {
 				/* Prepare to kick client */
-				usteer_roam_set_state(si, ROAM_TRIGGER_SCAN_DONE, &ev);
+				usteer_ubus_kick_client(si);
 			} else {
 				/* Kick in scan timeout */
 				si->roam_scan_timeout_start = current_time;
