@@ -68,6 +68,13 @@ enum usteer_beacon_measurement_mode {
 	BEACON_MEASUREMENT_TABLE = 2,
 };
 
+enum usteer_scan_state {
+	SCAN_STATE_IDLE = 0,
+	SCAN_STATE_TABLE = 1,
+	SCAN_STATE_ACTIVE_2G = 2,
+	SCAN_STATE_PASSIVE_5G = 3,
+};
+
 struct sta_info;
 struct usteer_local_node;
 struct usteer_remote_host;
@@ -227,8 +234,13 @@ struct sta_info_stats {
 };
 
 enum roam_trigger_state {
+	/* Scanning inactive / candidate selection inactive */
 	ROAM_TRIGGER_IDLE,
+	/* Scanning active / candidate selection active */
 	ROAM_TRIGGER_SCAN,
+	/* Scanning inactive / candidate selection sctive */
+	ROAM_TRIGGER_SEARCHING,
+	/* Better candidate found */
 	ROAM_TRIGGER_SCAN_DONE,
 };
 
@@ -258,8 +270,6 @@ struct sta_info {
 	uint8_t roam_tries;
 	uint64_t roam_event;
 	uint64_t roam_kick;
-	uint64_t roam_scan_start;
-	uint64_t roam_scan_timeout_start;
 
 	struct {
 		uint8_t status_code;
@@ -269,6 +279,16 @@ struct sta_info {
 	struct {
 		bool below_snr;
 	} band_steering;
+
+	struct {
+		enum usteer_scan_state state;
+
+		uint8_t op_class_idx;
+
+		uint64_t last_request;
+		uint64_t start;
+		uint64_t end;
+	} scan;
 
 	uint64_t kick_time;
 
@@ -368,7 +388,7 @@ bool usteer_band_steering_is_target(struct usteer_local_node *ln, struct usteer_
 
 void usteer_ubus_init(struct ubus_context *ctx);
 void usteer_ubus_kick_client(struct sta_info *si);
-int usteer_ubus_trigger_client_scan(struct sta_info *si);
+int usteer_ubus_trigger_beacon_request(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_mode, uint8_t channel);
 int usteer_ubus_band_steering_request(struct sta_info *si);
 int usteer_ubus_bss_transition_request(struct sta_info *si,
 				       uint8_t dialog_token,
@@ -439,6 +459,11 @@ void usteer_candidate_list_sort(struct sta *sta);
 void usteer_sta_generate_candidate_list(struct sta_info *si);
 
 int usteer_ubus_trigger_link_measurement(struct sta_info *si);
+
+bool usteer_scan_active(struct sta_info *si);
+bool usteer_scan_start(struct sta_info *si);
+void usteer_scan_stop(struct sta_info *si);
+void usteer_scan_next(struct sta_info *si);
 
 static inline void
 usteer_list_swap(struct list_head *elem1, struct list_head *elem2)

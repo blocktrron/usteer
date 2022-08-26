@@ -72,6 +72,7 @@ struct usteer_local_node {
 	} netifd;
 
 	unsigned int link_measurement_tries;
+	unsigned int scan_tries;
 };
 
 struct interface;

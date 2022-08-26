@@ -390,6 +390,8 @@ static const char *usteer_get_roam_sm_name(enum roam_trigger_state state)
 			return "ROAM_TRIGGER_IDLE";
 		case ROAM_TRIGGER_SCAN:
 			return "ROAM_TRIGGER_SCAN";
+		case ROAM_TRIGGER_SEARCHING:
+			return "ROAM_TRIGGER_SEARCHING";
 		case ROAM_TRIGGER_SCAN_DONE:
 			return "ROAM_TRIGGER_SCAN_DONE";
 	}
@@ -431,8 +433,6 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 			blobmsg_add_u64(&b, "event", si->roam_event ? current_time - si->roam_event : 0);
 			blobmsg_add_u32(&b, "kick-count", si->kick_count);
 			blobmsg_add_u64(&b, "last-kick", si->roam_kick ? current_time - si->roam_kick : 0);
-			blobmsg_add_u64(&b, "scan_start", si->roam_scan_start ? current_time - si->roam_scan_start : 0);
-			blobmsg_add_u64(&b, "scan_timeout_start", si->roam_scan_timeout_start ? current_time - si->roam_scan_timeout_start : 0);
 			blobmsg_close_table(&b, t);
 
 			t = blobmsg_open_table(&b, "bss-transition-response");
@@ -725,24 +725,22 @@ int usteer_ubus_trigger_link_measurement(struct sta_info *si)
 	return ubus_invoke(ubus_ctx, ln->obj_id, "link_measurement_req", b.head, NULL, 0, 100);
 }
 
-int usteer_ubus_trigger_client_scan(struct sta_info *si)
+int usteer_ubus_trigger_beacon_request(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_mode, uint8_t channel)
 {
 	struct usteer_local_node *ln = container_of(si->node, struct usteer_local_node, node);
 
-	if (!usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_ACTIVE)) {
+	if (!usteer_sta_supports_beacon_measurement_mode(si, mode)) {
 		MSG(DEBUG, "STA does not support beacon measurement sta=" MAC_ADDR_FMT "\n", MAC_ADDR_DATA(si->sta->addr));
 		return 0;
 	}
 
-	si->scan_band = !si->scan_band;
-
 	blob_buf_init(&b, 0);
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_string(&b, "ssid", si->node->ssid);
-	blobmsg_add_u32(&b, "mode", BEACON_MEASUREMENT_ACTIVE);
+	blobmsg_add_u32(&b, "mode", mode);
 	blobmsg_add_u32(&b, "duration", config.roam_scan_interval / 100);
-	blobmsg_add_u32(&b, "channel", 0);
-	blobmsg_add_u32(&b, "op_class", si->scan_band ? 1 : 12);
+	blobmsg_add_u32(&b, "channel", channel);
+	blobmsg_add_u32(&b, "op_class", op_mode);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);
 }
 
