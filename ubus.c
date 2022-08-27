@@ -411,6 +411,19 @@ static const char *usteer_get_scan_sm_name(enum usteer_scan_state state)
 	return "N/A";
 }
 
+static const char *usteer_get_candidate_information_source_name(enum usteer_candidate_information_source cis)
+{
+	switch (cis) {
+		case CIS_UNKNOWN:
+			return "UNKNOWN";
+		case CIS_STA_INFO:
+			return "STA_INFO";
+		case CIS_MEASUREMENT:
+			return "MEASUREMENT";
+	}
+	return "N/A";
+}
+
 static int
 usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *obj,
 				  struct ubus_request_data *req, const char *method,
@@ -503,6 +516,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 				blobmsg_add_u32(&b, "estimated_throughput", c->estimated_throughput);
 				blobmsg_add_u32(&b, "score", c->score);
 				blobmsg_add_u64(&b, "age", current_time - c->information_timestamp);
+				blobmsg_add_string(&b, "source", usteer_get_candidate_information_source_name(c->information_source));
 				blobmsg_add_u8(&b, "better", own_c ? usteer_policy_is_better_candidate(own_c, c) : 0);
 				blobmsg_close_table(&b, t);
 			}
