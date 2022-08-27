@@ -93,6 +93,7 @@ usteer_signal_to_snr(struct usteer_node *node, int signal)
 bool
 usteer_check_request(struct sta_info *si, enum usteer_event_type type)
 {
+	struct usteer_candidate *best_candidate;
 	struct uevent ev = {
 		.si_cur = si,
 	};
@@ -141,11 +142,16 @@ usteer_check_request(struct sta_info *si, enum usteer_event_type type)
 
 	usteer_sta_generate_candidate_list(si);
 
-	if (!usteer_policy_find_better_candidate(si);)
+	best_candidate = usteer_policy_find_better_candidate(si);
+	if (!best_candidate)
 		goto out;
 
 	ev.reason = UEV_REASON_BETTER_CANDIDATE;
 	ev.node_cur = si->node;
+	ev.candidate_cur = usteer_candidate_get(si->sta, si->node, false);
+	ev.candidate_other = best_candidate;
+	ev.threshold.cur = ev.candidate_cur->score;
+	ev.threshold.ref = ev.candidate_other->score;
 	ret = false;
 
 out:

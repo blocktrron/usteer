@@ -38,6 +38,9 @@ struct uevent {
 	struct usteer_node *node_cur;
 	struct usteer_node *node_other;
 
+	struct usteer_candidate *candidate_cur;
+	struct usteer_candidate *candidate_other;
+
 	unsigned int count;
 
 	struct {

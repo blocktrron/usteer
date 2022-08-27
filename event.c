@@ -133,19 +133,26 @@ usteer_event_log(struct uevent *ev)
 		cur += snprintf(cur, end - cur, " sta=" MAC_ADDR_FMT, MAC_ADDR_DATA(ev->sta->addr));
 	if (ev->reason)
 		cur += snprintf(cur, end - cur, " reason=%s", uev_reason[ev->reason]);
-	if (ev->si_cur)
-		cur += snprintf(cur, end - cur, " signal=%d", ev->si_cur->signal);
+	if (ev->candidate_cur){
+		cur += snprintf(cur, end - cur, " signal=%d", ev->candidate_cur->signal);
+	} else if (ev->si_cur) {
+		cur += snprintf(cur, end - cur, " signal=%d",
+				ev->si_cur->signal);
+	}
 	if (ev->threshold.ref)
 		cur += snprintf(cur, end - cur, " thr=%d/%d", ev->threshold.cur, ev->threshold.ref);
 	if (ev->count)
 		cur += snprintf(cur, end - cur, " count=%d", ev->count);
 	if (ev->node_cur)
 		cur += usteer_event_log_node(cur, end - cur, "", ev->node_cur);
-	if (ev->node_other) {
+	 if (ev->node_other) {
 		cur += snprintf(cur, end - cur, " remote=%s", usteer_node_name(ev->node_other));
-		if (ev->si_other)
+		if (ev->candidate_other){
+			cur += snprintf(cur, end - cur, " remote_signal=%d", ev->candidate_other->signal);
+		} else if (ev->si_other) {
 			cur += snprintf(cur, end - cur, " remote_signal=%d",
 					ev->si_other->signal);
+		}
 		cur += usteer_event_log_node(cur, end - cur, "remote_", ev->node_other);
 	}
 
@@ -159,6 +166,14 @@ void usteer_event(struct uevent *ev)
 
 	if (ev->reason >= ARRAY_SIZE(uev_reason) || !uev_reason[ev->reason])
 		return;
+
+	if (ev->candidate_cur && !ev->node_cur) {
+		ev->node_cur = ev->candidate_cur->node;
+	}
+
+	if (ev->candidate_other && !ev->node_other) {
+		ev->node_other = ev->candidate_other->node;
+	}
 
 	if (ev->si_cur) {
 		if (!ev->node_local)
