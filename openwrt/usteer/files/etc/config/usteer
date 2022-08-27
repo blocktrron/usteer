@@ -41,12 +41,6 @@ config usteer
 	# Maximum idle time of a station entry (ms) to be considered for policy decisions
 	#option seen_policy_timeout 30000
 
-	# Minimum number of stations delta between APs before load balancing policy is active
-	#option load_balancing_threshold 0
-
-	# Minimum number of stations delta between bands before band steering policy is active
-	#option band_steering_threshold 5
-
 	# Interval (ms) between sending state updates to other APs
 	#option remote_update_interval 1000
 
