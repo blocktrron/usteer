@@ -117,6 +117,7 @@ usteer_roam_trigger_sm(struct usteer_local_node *ln, struct sta_info *si)
 
 		usteer_ubus_bss_transition_request(si, 1, false, false, 100);
 		si->kick_time = current_time + config.roam_kick_delay;
+        si->last_steer = current_time;
 		usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, &ev);
 		break;
 	}

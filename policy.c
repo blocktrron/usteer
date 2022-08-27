@@ -203,6 +203,10 @@ bool usteer_policy_can_perform_steer(struct sta_info *si)
 	if (current_time - si->roam_kick < config.steer_trigger_interval)
 		return false;
 
+	/* Skip on previous steering attempt */
+	if (current_time - si->last_steer < config.steer_trigger_interval)
+		return false;
+
 	/* Skip if connection is established shorter than the trigger-interval */
 	if (current_time - si->connected_since < config.steer_trigger_interval)
 		return false;

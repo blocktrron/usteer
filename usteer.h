@@ -267,6 +267,7 @@ struct sta_info {
 	uint8_t roam_tries;
 	uint64_t roam_event;
 	uint64_t roam_kick;
+	uint64_t last_steer;
 
 	struct {
 		uint8_t status_code;
