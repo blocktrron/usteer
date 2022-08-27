@@ -699,7 +699,7 @@ usteer_local_node_request_link_measurement(struct usteer_local_node *ln)
 static void
 usteer_local_node_request_sta_scan(struct usteer_local_node *ln)
 {
-	unsigned int min_count = DIV_ROUND_UP(config.roam_scan_interval, config.local_sta_update);
+	unsigned int min_count = DIV_ROUND_UP(config.scan_interval, config.local_sta_update);
 	struct usteer_node *node;
 	struct sta_info *si;
 

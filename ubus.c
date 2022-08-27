@@ -167,8 +167,8 @@ struct cfg_item {
 	_cfg(U32, roam_process_timeout), \
 	_cfg(I32, roam_scan_snr), \
 	_cfg(U32, roam_scan_tries), \
-	_cfg(U32, roam_scan_timeout), \
-	_cfg(U32, roam_scan_interval), \
+	_cfg(U32, scan_timeout), \
+	_cfg(U32, scan_interval), \
 	_cfg(I32, roam_trigger_snr), \
 	_cfg(U32, roam_trigger_interval), \
 	_cfg(U32, roam_kick_delay), \
@@ -758,7 +758,7 @@ int usteer_ubus_trigger_beacon_request(struct sta_info *si, enum usteer_beacon_m
 	blobmsg_printf(&b, "addr", MAC_ADDR_FMT, MAC_ADDR_DATA(si->sta->addr));
 	blobmsg_add_string(&b, "ssid", si->node->ssid);
 	blobmsg_add_u32(&b, "mode", mode);
-	blobmsg_add_u32(&b, "duration", config.roam_scan_interval / 100);
+	blobmsg_add_u32(&b, "duration", config.scan_interval / 100);
 	blobmsg_add_u32(&b, "channel", channel);
 	blobmsg_add_u32(&b, "op_class", op_mode);
 	return ubus_invoke(ubus_ctx, ln->obj_id, "rrm_beacon_req", b.head, NULL, 0, 100);

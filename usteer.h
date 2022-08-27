@@ -188,8 +188,8 @@ struct usteer_config {
 	uint32_t roam_process_timeout;
 
 	uint32_t roam_scan_tries;
-	uint32_t roam_scan_timeout;
-	uint32_t roam_scan_interval;
+	uint32_t scan_timeout;
+	uint32_t scan_interval;
 
 	int32_t roam_trigger_snr;
 	uint32_t roam_trigger_interval;

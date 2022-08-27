@@ -21,7 +21,7 @@ bool usteer_scan_start(struct sta_info *si)
 	if (si->scan.state != SCAN_STATE_IDLE)
 		return true;
 	
-	if (si->scan.end && current_time - si->scan.end < config.roam_scan_timeout)
+	if (si->scan.end && current_time - si->scan.end < config.scan_timeout)
 		return false;
 	
 	si->scan.state = SCAN_STATE_TABLE;
