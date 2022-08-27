@@ -103,7 +103,7 @@ void usteer_init_defaults(void)
 	config.probe_steering = 0;
 
 	config.roam_kick_delay = 10000;
-	config.roam_candidate_selection_factor = 30;
+	config.candidate_acceptance_factor = 30;
 
 	config.roam_process_timeout = 5 * 1000;
 	config.roam_scan_tries = 3;

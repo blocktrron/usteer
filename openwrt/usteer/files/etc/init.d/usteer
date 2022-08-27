@@ -81,7 +81,7 @@ uci_usteer() {
 		remote_update_interval remote_node_timeout\
 		min_connect_snr min_snr min_snr_kick_delay signal_diff_threshold \
 		initial_connect_delay steer_reject_timeout roam_process_timeout\
-		roam_kick_delay roam_candidate_selection_factor \
+		roam_kick_delay candidate_acceptance_factor \
 		roam_scan_tries scan_timeout \
 		roam_scan_snr scan_interval \
 		roam_trigger_snr roam_trigger_interval \

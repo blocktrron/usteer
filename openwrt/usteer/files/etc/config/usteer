@@ -88,7 +88,7 @@ config usteer
 
 	# Factor in percent by which a candidate node has to be better evaluated than the current connection
 	# to be considered a better suited connection candidate
-	#option roam_candidate_selection_factor 30
+	#option candidate_acceptance_factor 30
 
 	# Retry scanning after a scan-iteration this timeout (in ms)
 	#option scan_timeout 0

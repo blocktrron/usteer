@@ -30,7 +30,7 @@ usteer_policy_node_below_max_assoc(struct usteer_node *node)
 bool
 usteer_policy_is_better_candidate(struct usteer_candidate *c_ref, struct usteer_candidate *c_test)
 {
-	return c_ref->score * (1.0 + config.roam_candidate_selection_factor * 0.01) < c_test->score;
+	return c_ref->score * (1.0 + config.candidate_acceptance_factor * 0.01) < c_test->score;
 }
 
 static struct usteer_candidate *
