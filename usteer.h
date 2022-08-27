@@ -192,7 +192,7 @@ struct usteer_config {
 	uint32_t scan_interval;
 
 	int32_t roam_trigger_snr;
-	uint32_t roam_trigger_interval;
+	uint32_t steer_trigger_interval;
 
 	uint32_t roam_kick_delay;
 
@@ -378,7 +378,7 @@ int usteer_local_node_get_beacon_interval(struct usteer_local_node *ln);
 
 struct usteer_candidate *usteer_policy_find_better_candidate(struct sta_info *si_ref);
 bool usteer_policy_node_below_max_assoc(struct usteer_node *node);
-bool usteer_policy_can_perform_roam(struct sta_info *si);
+bool usteer_policy_can_perform_steer(struct sta_info *si);
 bool usteer_policy_is_better_candidate(struct usteer_candidate *c_ref, struct usteer_candidate *c_test);
 
 void usteer_band_steering_perform_steer(struct usteer_local_node *ln);

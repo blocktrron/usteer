@@ -127,7 +127,7 @@ usteer_roam_trigger_sm(struct usteer_local_node *ln, struct sta_info *si)
 static bool
 usteer_roam_sm_active(struct sta_info *si, int min_signal)
 {
-	if (!usteer_policy_can_perform_roam(si))
+	if (!usteer_policy_can_perform_steer(si))
 		return false;
 
 	/* Signal has to be below scan / roam threshold */

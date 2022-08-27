@@ -109,7 +109,7 @@ void usteer_init_defaults(void)
 	config.roam_scan_tries = 3;
 	config.scan_timeout = 0;
 	config.scan_interval = 10 * 1000;
-	config.roam_trigger_interval = 60 * 1000;
+	config.steer_trigger_interval = 60 * 1000;
 
 	config.min_snr_kick_delay = 5 * 1000;
 

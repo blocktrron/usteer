@@ -82,7 +82,7 @@ void usteer_band_steering_perform_steer(struct usteer_local_node *ln)
 
 	list_for_each_entry(si, &ln->node.sta_info, node_list) {
 		/* Check if client is eligable to be steerd */
-		if (!usteer_policy_can_perform_roam(si))
+		if (!usteer_policy_can_perform_steer(si))
 			continue;
 
 		/* Skip clients with insufficient SNR-state */

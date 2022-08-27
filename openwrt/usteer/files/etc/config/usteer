@@ -81,7 +81,7 @@ config usteer
 	#option roam_trigger_snr 0
 
 	# Minimum time (ms) between client roaming trigger attempts
-	#option roam_trigger_interval 60000
+	#option steer_trigger_interval 60000
 
 	# Timeout (ms) for client roam requests. usteer will kick the client after this times out.
 	#option roam_kick_delay 10000

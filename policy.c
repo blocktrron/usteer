@@ -185,7 +185,7 @@ is_more_kickable(struct sta_info *si_cur, struct sta_info *si_new)
 	return si_cur->signal > si_new->signal;
 }
 
-bool usteer_policy_can_perform_roam(struct sta_info *si)
+bool usteer_policy_can_perform_steer(struct sta_info *si)
 {
 	/* Only trigger for connected STAs */
 	if (si->connected != STA_CONNECTED)
@@ -200,11 +200,11 @@ bool usteer_policy_can_perform_roam(struct sta_info *si)
 		return false;
 
 	/* Skip on previous kick attempt */
-	if (current_time - si->roam_kick < config.roam_trigger_interval)
+	if (current_time - si->roam_kick < config.steer_trigger_interval)
 		return false;
 
 	/* Skip if connection is established shorter than the trigger-interval */
-	if (current_time - si->connected_since < config.roam_trigger_interval)
+	if (current_time - si->connected_since < config.steer_trigger_interval)
 		return false;
 
 	/* Also skip in case we've not yet retrieved the connection time */

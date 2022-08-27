@@ -170,7 +170,7 @@ struct cfg_item {
 	_cfg(U32, scan_timeout), \
 	_cfg(U32, scan_interval), \
 	_cfg(I32, roam_trigger_snr), \
-	_cfg(U32, roam_trigger_interval), \
+	_cfg(U32, steer_trigger_interval), \
 	_cfg(U32, roam_kick_delay), \
 	_cfg(U32, candidate_acceptance_factor), \
 	_cfg(U32, signal_diff_threshold), \
