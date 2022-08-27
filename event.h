@@ -24,14 +24,6 @@ enum uevent_reason {
 	UEV_REASON_BETTER_CANDIDATE,
 };
 
-enum uevent_select_reason {
-	UEV_SELECT_REASON_NUM_ASSOC,
-	UEV_SELECT_REASON_SIGNAL,
-	UEV_SELECT_REASON_LOAD,
-};
-
-#define UEV_SELECT_REASON_ALL ((1 << UEV_SELECT_REASON_NUM_ASSOC) | (1 << UEV_SELECT_REASON_SIGNAL) | (1 << UEV_SELECT_REASON_LOAD))
-
 struct uevent {
 	enum uevent_type type;
 	enum uevent_reason reason;

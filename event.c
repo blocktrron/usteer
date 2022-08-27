@@ -45,12 +45,6 @@ static const char * const uev_reason[] = {
 	[UEV_REASON_BETTER_CANDIDATE] = "better_candidate",
 };
 
-static const char * const uev_select_reason[] = {
-	[UEV_SELECT_REASON_NUM_ASSOC] = "n_assoc",
-	[UEV_SELECT_REASON_SIGNAL] = "signal",
-	[UEV_SELECT_REASON_LOAD] = "load",
-};
-
 static void
 usteer_event_add_node_status(struct usteer_node *node)
 {
@@ -62,7 +56,6 @@ static void
 usteer_event_send_ubus(struct uevent *ev)
 {
 	void *c;
-	int i;
 
 	if (!usteer_obj.has_subscribers)
 		return;
@@ -85,18 +78,6 @@ usteer_event_send_ubus(struct uevent *ev)
 		c = blobmsg_open_array(&b, "threshold");
 		blobmsg_add_u32(&b, NULL, ev->threshold.cur);
 		blobmsg_add_u32(&b, NULL, ev->threshold.ref);
-		blobmsg_close_array(&b, c);
-	}
-
-	if (ev->select_reasons) {
-		c = blobmsg_open_array(&b, "select_reason");
-		for (i = 0; i < ARRAY_SIZE(uev_select_reason); i++) {
-			if (!(ev->select_reasons & (1 << i)) ||
-				!uev_select_reason[i])
-				continue;
-
-			blobmsg_add_string(&b, NULL, uev_select_reason[i]);
-		}
 		blobmsg_close_array(&b, c);
 	}
 
@@ -138,7 +119,6 @@ static void
 usteer_event_log(struct uevent *ev)
 {
 	char *str, *cur, *end;
-	int i;
 
 	if (!(config.event_log_mask & (1 << ev->type)))
 		return;
@@ -161,20 +141,6 @@ usteer_event_log(struct uevent *ev)
 		cur += snprintf(cur, end - cur, " count=%d", ev->count);
 	if (ev->node_cur)
 		cur += usteer_event_log_node(cur, end - cur, "", ev->node_cur);
-	if (ev->select_reasons) {
-		bool first = true;
-
-		cur += snprintf(cur, end - cur, " select_reason");
-		for (i = 0; i < ARRAY_SIZE(uev_select_reason); i++) {
-			if (!(ev->select_reasons & (1 << i)) ||
-				!uev_select_reason[i])
-				continue;
-
-			cur += snprintf(cur, end - cur, "%c%s", first ? '=' : ',',
-						    uev_select_reason[i]);
-			first = false;
-		}
-	}
 	if (ev->node_other) {
 		cur += snprintf(cur, end - cur, " remote=%s", usteer_node_name(ev->node_other));
 		if (ev->si_other)
