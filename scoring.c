@@ -70,8 +70,10 @@ void usteer_sta_generate_candidate_list(struct sta_info *si)
 {
 	struct sta *sta = si->sta;
 	struct sta_info *si_seen;
+	struct usteer_measurement_report *msm;
 	struct usteer_candidate *candidate;
 	uint16_t tpt;
+	int signal;
 
 	/* Loop through seen STAs & estimate throughput */
 	list_for_each_entry(si_seen, &sta->nodes, list) {
@@ -87,6 +89,32 @@ void usteer_sta_generate_candidate_list(struct sta_info *si)
 
 		candidate->signal = si_seen->signal;
 		candidate->snr = usteer_signal_to_snr(si_seen->node, si_seen->signal);
+		candidate->estimated_throughput = tpt;
+
+		/* Build candidate score */
+		candidate->score = usteer_score_candidate(si, candidate);
+	}
+
+	/* Loop through available measurements for this STA */
+	list_for_each_entry(msm, &sta->measurements, sta_list) {
+		/* In case STA is connected, filter for identical SSID */
+		if (si->connected && strcmp(msm->node->ssid, si->node->ssid))
+			continue;
+
+		signal = usteer_measurement_get_rssi(msm);
+
+		tpt = usteer_estimate_throughput(sta, msm->node, usteer_signal_to_snr(msm->node, signal));
+		candidate = usteer_candidate_get(sta, msm->node, true);
+
+		/* Score based on age of information */
+		if (candidate->information_timestamp > msm->timestamp)
+			continue;
+
+		candidate->information_source = CIS_MEASUREMENT;
+		candidate->information_timestamp = msm->timestamp;
+
+		candidate->signal = signal;
+		candidate->snr = usteer_signal_to_snr(msm->node, signal);
 		candidate->estimated_throughput = tpt;
 
 		/* Build candidate score */

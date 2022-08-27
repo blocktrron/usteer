@@ -111,6 +111,8 @@ usteer_candidate_get(struct sta *sta, struct usteer_node *node, bool create)
 	c->sta = sta;
 	list_add(&c->sta_list, &sta->candidates);
 
+	c->information_source = CIS_UNKNOWN;
+
 	usteer_timeout_set(&tq, &c->timeout, 10 * 1000);
 
 	return c;

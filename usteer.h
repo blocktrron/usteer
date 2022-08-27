@@ -327,6 +327,7 @@ struct usteer_measurement_report {
 };
 
 enum usteer_candidate_information_source {
+	CIS_UNKNOWN,
 	CIS_STA_INFO,
 	CIS_MEASUREMENT,
 };
