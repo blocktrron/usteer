@@ -33,8 +33,8 @@ usteer_policy_is_better_candidate(struct usteer_candidate *c_ref, struct usteer_
 	return c_ref->score * (1.0 + config.candidate_acceptance_factor * 0.01) < c_test->score;
 }
 
-static struct usteer_candidate *
-find_better_candidate(struct sta_info *si_ref)
+struct usteer_candidate *
+usteer_policy_find_better_candidate(struct sta_info *si_ref)
 {
 	struct usteer_candidate *c, *best_candidate = NULL, *current_candidate = NULL;
 	struct sta *sta = si_ref->sta;
@@ -141,7 +141,7 @@ usteer_check_request(struct sta_info *si, enum usteer_event_type type)
 
 	usteer_sta_generate_candidate_list(si);
 
-	if (!find_better_candidate(si))
+	if (!usteer_policy_find_better_candidate(si);)
 		goto out;
 
 	ev.reason = UEV_REASON_BETTER_CANDIDATE;
@@ -185,107 +185,6 @@ is_more_kickable(struct sta_info *si_cur, struct sta_info *si_new)
 	return si_cur->signal > si_new->signal;
 }
 
-static void
-usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
-		      struct uevent *ev)
-{
-	if (state != ROAM_TRIGGER_SCAN)
-		usteer_scan_stop(si);
-
-	si->roam_state = state;
-	usteer_event(ev);
-}
-
-static void
-usteer_roam_sm_start_scan(struct sta_info *si, struct uevent *ev)
-{
-	/* Start scanning in case we are not timeout-constrained or timeout has expired */
-	if (usteer_scan_start(si)) {
-		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, ev);
-		return;
-	}
-
-	/* We are currently in scan timeout / cooldown.
-	 * Check if we are in ROAM_TRIGGER_IDLE state. Enter this state if not.
-	 */
-	if (si->roam_state == ROAM_TRIGGER_IDLE)
-		return;
-
-	/* Enter idle state */
-	usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
-}
-
-static struct usteer_candidate *
-usteer_roam_sm_found_better_node(struct sta_info *si, struct uevent *ev, enum roam_trigger_state next_state)
-{
-	struct usteer_candidate *candidate;
-
-	candidate = find_better_candidate(si);
-	if (candidate)
-		usteer_roam_set_state(si, next_state, ev);
-
-	return candidate;
-}
-
-static bool
-usteer_roam_trigger_sm(struct usteer_local_node *ln, struct sta_info *si)
-{
-	struct usteer_candidate *candidate;
-	struct uevent ev = {
-		.si_cur = si,
-	};
-
-	switch (si->roam_state) {
-	case ROAM_TRIGGER_SCAN:
-		/* Check if we've found a better node regardless of the scan-interval */
-		if (usteer_roam_sm_found_better_node(si, &ev, ROAM_TRIGGER_SCAN_DONE))
-			break;
-		
-		/* Kick back to idle state in case scan finished */
-		if (!usteer_scan_active(si)) {
-			if (si->signal <= config.roam_trigger_snr)
-				si->roam_tries++;
-
-			/* Kick client in case it exceeded the max roam-attempts */
-			if (config.roam_scan_tries && si->roam_tries >= config.roam_scan_tries)
-				usteer_ubus_kick_client(si);
-			
-			usteer_roam_set_state(si, ROAM_TRIGGER_SEARCHING, &ev);
-		}
-		break;
-
-	case ROAM_TRIGGER_IDLE:
-		break;
-	
-	case ROAM_TRIGGER_SEARCHING:
-		/* Check if we've found a better node regardless of the scan-interval */
-		usteer_roam_sm_found_better_node(si, &ev, ROAM_TRIGGER_SCAN_DONE);
-
-		/* Start Scan if possible */
-		usteer_roam_sm_start_scan(si, &ev);
-		break;
-
-	case ROAM_TRIGGER_SCAN_DONE:
-		candidate = usteer_roam_sm_found_better_node(si, &ev, ROAM_TRIGGER_SCAN_DONE);
-
-		/* Kick back in case no better node is found */
-		if (!candidate) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_SEARCHING, &ev);
-			break;
-		}
-	
-		if (si->signal <= config.roam_trigger_snr)
-			break;
-
-		usteer_ubus_bss_transition_request(si, 1, false, false, 100);
-		si->kick_time = current_time + config.roam_kick_delay;
-		usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, &ev);
-		break;
-	}
-
-	return false;
-}
-
 bool usteer_policy_can_perform_roam(struct sta_info *si)
 {
 	/* Only trigger for connected STAs */
@@ -313,59 +212,6 @@ bool usteer_policy_can_perform_roam(struct sta_info *si)
 		return false;
 	
 	return true;
-}
-
-static bool
-usteer_local_node_roam_sm_active(struct sta_info *si, int min_signal)
-{
-	if (!usteer_policy_can_perform_roam(si))
-		return false;
-
-	/* Signal has to be below scan / roam threshold */
-	if (si->signal >= min_signal)
-		return false;
-
-	return true;
-}
-
-static void usteer_local_node_roam_sm_activate(struct sta_info *si, struct uevent *ev)
-{
-	if (si->roam_state == ROAM_TRIGGER_IDLE) {
-		usteer_roam_set_state(si, ROAM_TRIGGER_SEARCHING, ev);
-	}
-}
-
-static void
-usteer_local_node_roam_check(struct usteer_local_node *ln, struct uevent *ev)
-{
-	struct sta_info *si;
-	int min_signal;
-
-	if (config.roam_scan_snr)
-		min_signal = config.roam_scan_snr;
-	else if (config.roam_trigger_snr)
-		min_signal = config.roam_trigger_snr;
-	else
-		return;
-
-	usteer_update_time();
-	min_signal = usteer_snr_to_signal(&ln->node, min_signal);
-
-	list_for_each_entry(si, &ln->node.sta_info, node_list) {
-		if (!usteer_local_node_roam_sm_active(si, min_signal)) {
-			usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
-			continue;
-		}
-
-		usteer_local_node_roam_sm_activate(si, ev);
-
-		/*
-		 * If the state machine kicked a client, other clients should wait
-		 * until the next turn
-		 */
-		if (usteer_roam_trigger_sm(ln, si))
-			return;
-	}
 }
 
 static void
@@ -461,7 +307,7 @@ usteer_local_node_load_kick(struct usteer_local_node *ln)
 		if (is_more_kickable(kick1, si))
 			kick1 = si;
 
-		tmp = find_better_candidate(si);
+		tmp = usteer_policy_find_better_candidate(si);
 		if (!tmp)
 			continue;
 
@@ -506,13 +352,9 @@ usteer_local_node_perform_kick(struct usteer_local_node *ln)
 void
 usteer_local_node_kick(struct usteer_local_node *ln)
 {
-	struct uevent ev = {
-		.node_local = &ln->node,
-	};
-
 	usteer_local_node_perform_kick(ln);
 
 	usteer_local_node_snr_kick(ln);
 	usteer_local_node_load_kick(ln);
-	usteer_local_node_roam_check(ln, &ev);
+	usteer_roam_check(ln);
 }

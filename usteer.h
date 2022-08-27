@@ -376,6 +376,7 @@ void usteer_local_node_kick(struct usteer_local_node *ln);
 
 int usteer_local_node_get_beacon_interval(struct usteer_local_node *ln);
 
+struct usteer_candidate *usteer_policy_find_better_candidate(struct sta_info *si_ref);
 bool usteer_policy_node_below_max_assoc(struct usteer_node *node);
 bool usteer_policy_can_perform_roam(struct sta_info *si);
 bool usteer_policy_is_better_candidate(struct usteer_candidate *c_ref, struct usteer_candidate *c_test);
@@ -457,6 +458,8 @@ void usteer_candidate_list_sort(struct sta *sta);
 void usteer_sta_generate_candidate_list(struct sta_info *si);
 
 int usteer_ubus_trigger_link_measurement(struct sta_info *si);
+
+void usteer_roam_check(struct usteer_local_node *ln);
 
 bool usteer_scan_active(struct sta_info *si);
 bool usteer_scan_start(struct sta_info *si);
