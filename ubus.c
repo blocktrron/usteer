@@ -398,6 +398,21 @@ static const char *usteer_get_roam_sm_name(enum roam_trigger_state state)
 	return "N/A";
 }
 
+static const char *usteer_get_scan_sm_name(enum usteer_scan_state state)
+{
+	switch (state) {
+		case SCAN_STATE_IDLE:
+			return "SCAN_STATE_IDLE";
+		case SCAN_STATE_TABLE:
+			return "SCAN_STATE_TABLE";
+		case SCAN_STATE_ACTIVE_2G:
+			return "SCAN_STATE_ACTIVE_2G";
+		case SCAN_STATE_PASSIVE_5G:
+			return "SCAN_STATE_PASSIVE_5G";
+	}
+	return "N/A";
+}
+
 static int
 usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *obj,
 				  struct ubus_request_data *req, const char *method,
@@ -425,6 +440,13 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 
 			t = blobmsg_open_table(&b, "snr-kick");
 			blobmsg_add_u32(&b, "seen-below", si->below_min_snr);
+			blobmsg_close_table(&b, t);
+
+			t = blobmsg_open_table(&b, "scan");
+			blobmsg_add_string(&b, "state",usteer_get_scan_sm_name(si->scan.state));
+			blobmsg_add_u64(&b, "last-request", si->scan.last_request ? current_time - si->scan.last_request : 0);
+			blobmsg_add_u64(&b, "start", si->scan.start ? current_time - si->scan.start : 0);
+			blobmsg_add_u64(&b, "end", si->scan.end ? current_time - si->scan.end : 0);
 			blobmsg_close_table(&b, t);
 
 			t = blobmsg_open_table(&b, "roam-state-machine");
