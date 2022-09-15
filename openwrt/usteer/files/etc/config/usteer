@@ -84,6 +84,7 @@ config usteer
 	#option steer_trigger_interval 60000
 
 	# Timeout (ms) for client roam requests. usteer will kick the client after this times out.
+	# A value of 0 will disable forced client disassoc on roam-steering attempts.
 	#option roam_kick_delay 10000
 
 	# Factor in percent by which a candidate node has to be better evaluated than the current connection
