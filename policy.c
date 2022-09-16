@@ -30,6 +30,10 @@ usteer_policy_node_below_max_assoc(struct usteer_node *node)
 bool
 usteer_policy_is_better_candidate(struct usteer_candidate *c_ref, struct usteer_candidate *c_test)
 {
+	/* Not a better candidate if SNR / Signal is considerably worse */
+	if (c_ref->signal > c_test->signal + 10 || c_ref->snr > c_test->signal + 10)
+		return false;
+
 	return c_ref->score * (1.0 + config.candidate_acceptance_factor * 0.01) < c_test->score;
 }
 
