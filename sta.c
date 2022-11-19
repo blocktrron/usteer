@@ -48,6 +48,7 @@ usteer_sta_info_del(struct sta_info *si)
 	MSG(DEBUG, "Delete station " MAC_ADDR_FMT " entry for node %s\n",
 	    MAC_ADDR_DATA(sta->addr), usteer_node_name(si->node));
 
+	usteer_scan_list_clear(si);
 	usteer_timeout_cancel(&tq, &si->timeout);
 	list_del(&si->list);
 	list_del(&si->node_list);
@@ -105,6 +106,8 @@ usteer_sta_info_get(struct sta *sta, struct usteer_node *node, bool *create)
 	list_add(&si->node_list, &node->sta_info);
 	si->created = current_time;
 	*create = true;
+
+	INIT_LIST_HEAD(&si->scan.queue);
 
 	/* Node is by default not connected. */
 	usteer_sta_disconnected(si);

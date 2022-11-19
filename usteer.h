@@ -241,6 +241,13 @@ enum roam_trigger_state {
 	ROAM_TRIGGER_SCAN_DONE,
 };
 
+struct usteer_client_scan {
+	struct list_head list;
+	enum usteer_beacon_measurement_mode mode;
+	uint8_t op_class;
+	uint8_t channel;
+};
+
 struct sta_info {
 	struct list_head list;
 	struct list_head node_list;
@@ -280,8 +287,7 @@ struct sta_info {
 
 	struct {
 		enum usteer_scan_state state;
-
-		uint8_t op_class_idx;
+		struct list_head queue;
 
 		uint64_t last_request;
 		uint64_t start;
@@ -461,6 +467,8 @@ void usteer_sta_generate_candidate_list(struct sta_info *si);
 int usteer_ubus_trigger_link_measurement(struct sta_info *si);
 
 void usteer_roam_check(struct usteer_local_node *ln);
+
+void usteer_scan_list_clear(struct sta_info *si);
 
 bool usteer_scan_active(struct sta_info *si);
 bool usteer_scan_start(struct sta_info *si);

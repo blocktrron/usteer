@@ -9,12 +9,64 @@
 #define OP_CLASS_5G_100_144		121
 #define OP_CLASS_5G_149_169		125
 
-static const uint8_t op_classes_5g[] = {
-		OP_CLASS_5G_36_48,
-		OP_CLASS_5G_52_64,
-		OP_CLASS_5G_100_144,
-		OP_CLASS_5G_149_169,
-};
+static void usteer_scan_list_add(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel)
+{
+	struct usteer_client_scan *s;
+
+	s = calloc(1, sizeof(*s));
+	if (!s)
+		return;
+	
+	s->mode = mode;
+	s->op_class = op_class;
+	s->channel = channel;
+
+	list_add(&s->list, &si->scan.queue);
+}
+
+static void usteer_scan_list_create(struct sta_info *si)
+{
+	struct usteer_node *node;
+	int i;
+	/* Check if beacon-table is supported */
+	if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_TABLE)) {
+		usteer_scan_list_add(si, BEACON_MEASUREMENT_TABLE, 0, 0);
+	}
+
+	/* Add Nodes based on the neighbor suitability.
+	 * TODO: Score nodes not by roam procedures but instead of how often they've seen identical clients
+	 * (Cell coverage overlap).
+	 */
+	node = usteer_node_get_next_neighbor(si->node, NULL);
+	for (i = 0; i < 10 && node; i++) {
+		if (node->freq < 3000) {
+			if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_ACTIVE)) {
+				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, i);
+			} else if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_PASSIVE)) {
+				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, i);
+			}
+		} else {
+			/* Only add 2.4 GHz channels for active scanning. Intel prohibits active probing on 5GHz,
+			 * this is however not detectable, as active probing is still flagged as supported due to
+			 * the STA supporting it on 2.4GHz.
+			 */
+			if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_PASSIVE)) {
+				/* ToDo determine op-class*/
+			}
+		}
+		node = usteer_node_get_next_neighbor(si->node, node);
+	}
+}
+
+void usteer_scan_list_clear(struct sta_info *si)
+{
+	struct usteer_client_scan *s, *tmp;
+
+	list_for_each_entry_safe(s, tmp, &si->scan.queue, list) {
+		list_del(&s->list);
+		free(s);
+	}
+}
 
 bool usteer_scan_start(struct sta_info *si)
 {
@@ -24,7 +76,7 @@ bool usteer_scan_start(struct sta_info *si)
 	if (si->scan.end && current_time - si->scan.end < config.scan_timeout)
 		return false;
 	
-	si->scan.state = SCAN_STATE_TABLE;
+	usteer_scan_list_create(si);
 	si->scan.start = current_time;
 	si->scan.end = 0;
 	return true;
@@ -34,10 +86,11 @@ void usteer_scan_stop(struct sta_info *si)
 {
 	if (si->scan.state == SCAN_STATE_IDLE)
 		return;
+	
+	usteer_scan_list_clear(si);
 
 	si->scan.state = SCAN_STATE_IDLE;
 	si->scan.end = current_time;
-	si->scan.op_class_idx = 0;
 }
 
 bool usteer_scan_active(struct sta_info *si)
@@ -53,22 +106,16 @@ static void usteer_scan_trigger(struct sta_info *si, enum usteer_beacon_measurem
 
 void usteer_scan_next(struct sta_info *si)
 {
-	switch (si->scan.state) {
-		case SCAN_STATE_TABLE:
-			usteer_scan_trigger(si, BEACON_MEASUREMENT_TABLE, 0, 0);
-			si->scan.state++;
-			break;
-		case SCAN_STATE_ACTIVE_2G:
-			usteer_scan_trigger(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, 0);
-			si->scan.state++;
-			break;
-		case SCAN_STATE_PASSIVE_5G:
-			usteer_scan_trigger(si, BEACON_MEASUREMENT_PASSIVE, op_classes_5g[si->scan.op_class_idx], 0);
-			si->scan.op_class_idx++;
-			if (si->scan.op_class_idx == ARRAY_SIZE(op_classes_5g)) {
-				usteer_scan_stop(si);
-			}
-			break;
-		default:
+	struct usteer_client_scan *s;
+
+	if (list_empty(&si->scan.queue)) {
+		usteer_scan_stop(si);
+		return;
 	}
+
+	s = list_first_entry(&si->scan.queue, struct usteer_client_scan, list);
+	usteer_scan_trigger(si, s->mode, s->op_class, s->channel);
+
+	list_del(&s->list);
+	free(s);
 }
