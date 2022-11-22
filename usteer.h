@@ -475,6 +475,18 @@ bool usteer_scan_start(struct sta_info *si);
 void usteer_scan_stop(struct sta_info *si);
 void usteer_scan_next(struct sta_info *si);
 
+static inline char *
+usteer_beacon_measurement_mode_name(enum usteer_beacon_measurement_mode mode)
+{
+	if (mode == BEACON_MEASUREMENT_ACTIVE)
+		return "ACTIVE";
+	if (mode == BEACON_MEASUREMENT_PASSIVE)
+		return "PASSIVE";
+	if (mode == BEACON_MEASUREMENT_TABLE)
+		return "TABLE";
+	return "N/A";
+}
+
 static inline void
 usteer_list_swap(struct list_head *elem1, struct list_head *elem2)
 {

@@ -431,6 +431,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 {
 	struct usteer_measurement_report *mr;
 	struct usteer_candidate *c, *own_c;
+	struct usteer_scan_request *sr;
 	struct usteer_node *node;
 	struct sta_info *si;
 	void *n, *s, *t, *a;
@@ -491,6 +492,17 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 
 			/* MBO support */
 			blobmsg_add_u8(&b, "multi-band-operation", si->mbo);
+
+			/* Scan-Jobs*/
+			a = blobmsg_open_array(&b, "scan-jobs");
+			list_for_each_entry(sr, &si->scan.queue, list) {
+				t = blobmsg_open_table(&b, "");
+				blobmsg_add_string(&b, "mode", usteer_beacon_measurement_mode_name(sr->mode));
+				blobmsg_add_u32(&b, "channel", sr->channel);
+				blobmsg_add_u32(&b, "op-class", sr->op_class);
+				blobmsg_close_table(&b, t);
+			}
+			blobmsg_close_array(&b, a);
 
 			/* Measurements */
 			a = blobmsg_open_array(&b, "measurements");
