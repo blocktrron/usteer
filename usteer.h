@@ -70,9 +70,7 @@ enum usteer_beacon_measurement_mode {
 
 enum usteer_scan_state {
 	SCAN_STATE_IDLE = 0,
-	SCAN_STATE_TABLE = 1,
-	SCAN_STATE_ACTIVE_2G = 2,
-	SCAN_STATE_PASSIVE_5G = 3,
+	SCAN_STATE_SCANNING = 1,
 };
 
 struct sta_info;

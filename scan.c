@@ -92,6 +92,7 @@ bool usteer_scan_start(struct sta_info *si)
 		return false;
 	
 	usteer_scan_list_create(si);
+	si->scan.state = SCAN_STATE_SCANNING;
 	si->scan.start = current_time;
 	si->scan.end = 0;
 	return true;

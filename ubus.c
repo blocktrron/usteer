@@ -401,12 +401,8 @@ static const char *usteer_get_scan_sm_name(enum usteer_scan_state state)
 	switch (state) {
 		case SCAN_STATE_IDLE:
 			return "SCAN_STATE_IDLE";
-		case SCAN_STATE_TABLE:
-			return "SCAN_STATE_TABLE";
-		case SCAN_STATE_ACTIVE_2G:
-			return "SCAN_STATE_ACTIVE_2G";
-		case SCAN_STATE_PASSIVE_5G:
-			return "SCAN_STATE_PASSIVE_5G";
+		case SCAN_STATE_SCANNING:
+			return "SCAN_STATE_SCANNING";
 	}
 	return "N/A";
 }
