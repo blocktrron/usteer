@@ -9,9 +9,24 @@
 #define OP_CLASS_5G_100_144		121
 #define OP_CLASS_5G_149_169		125
 
+static bool usteer_scan_list_contains(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel)
+{
+	struct usteer_client_scan *s;
+
+	list_for_each_entry(s, &si->scan.queue, list) {
+		if (s->mode == mode && s->op_class == op_class && s->channel == channel)
+			return true;
+	}
+
+	return false;
+}
+
 static void usteer_scan_list_add(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel)
 {
 	struct usteer_client_scan *s;
+
+	if (usteer_scan_list_contains(si, mode, op_class, channel))
+		return;
 
 	s = calloc(1, sizeof(*s));
 	if (!s)
