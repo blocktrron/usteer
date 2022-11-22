@@ -431,7 +431,7 @@ usteer_ubus_get_connected_clients(struct ubus_context *ctx, struct ubus_object *
 {
 	struct usteer_measurement_report *mr;
 	struct usteer_candidate *c, *own_c;
-	struct usteer_scan_request *sr;
+	struct usteer_client_scan *sr;
 	struct usteer_node *node;
 	struct sta_info *si;
 	void *n, *s, *t, *a;
