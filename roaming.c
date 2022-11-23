@@ -43,14 +43,7 @@ usteer_roam_sm_start_scan(struct sta_info *si, struct uevent *ev)
 		return;
 	}
 
-	/* We are currently in scan timeout / cooldown.
-	 * Check if we are in ROAM_TRIGGER_IDLE state. Enter this state if not.
-	 */
-	if (si->roam_state == ROAM_TRIGGER_IDLE)
-		return;
-
-	/* Enter idle state */
-	usteer_roam_set_state(si, ROAM_TRIGGER_IDLE, ev);
+	/* We are currently in scan timeout / cooldown. */
 }
 
 static struct usteer_candidate *
