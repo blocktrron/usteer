@@ -9,6 +9,23 @@
 #define OP_CLASS_5G_100_144		121
 #define OP_CLASS_5G_149_169		125
 
+static int usteer_scan_node_to_op_class(struct usteer_node *node)
+{
+	if (node->freq < 3000)
+		return OP_CLASS_2G_1_13;
+
+	if (node->channel <= 48)
+		return OP_CLASS_5G_36_48;
+	
+	if (node->channel <= 64)
+		return OP_CLASS_5G_52_64;
+	
+	if (node->channel <= 144)
+		return OP_CLASS_5G_100_144;
+	
+	return OP_CLASS_5G_149_169;
+}
+
 static bool usteer_scan_list_contains(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel)
 {
 	struct usteer_client_scan *s;
@@ -56,9 +73,9 @@ static void usteer_scan_list_create(struct sta_info *si)
 	for (i = 0; i < 10 && node; i++) {
 		if (node->freq < 3000) {
 			if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_ACTIVE)) {
-				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, i);
+				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, node->channel);
 			} else if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_PASSIVE)) {
-				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, i);
+				usteer_scan_list_add(si, BEACON_MEASUREMENT_ACTIVE, OP_CLASS_2G_1_13, node->channel);
 			}
 		} else {
 			/* Only add 2.4 GHz channels for active scanning. Intel prohibits active probing on 5GHz,
@@ -66,7 +83,7 @@ static void usteer_scan_list_create(struct sta_info *si)
 			 * the STA supporting it on 2.4GHz.
 			 */
 			if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_PASSIVE)) {
-				/* ToDo determine op-class*/
+				usteer_scan_list_add(si, BEACON_MEASUREMENT_PASSIVE, usteer_scan_node_to_op_class(node), node->channel);
 			}
 		}
 		node = usteer_node_get_next_neighbor(si->node, node);
