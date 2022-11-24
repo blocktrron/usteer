@@ -22,13 +22,15 @@
 #include "node.h"
 #include "event.h"
 
+static int usteer_scan_requester_id = -1;
+
 
 static void
 usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 		      struct uevent *ev)
 {
-	if (state != ROAM_TRIGGER_SCAN)
-		usteer_scan_stop(si);
+	if (state != ROAM_TRIGGER_SCAN && usteer_scan_requester_id >= 0)
+		usteer_scan_cancel(si, usteer_scan_requester_id);
 
 	si->roam_state = state;
 	usteer_event(ev);
@@ -37,6 +39,20 @@ usteer_roam_set_state(struct sta_info *si, enum roam_trigger_state state,
 static void
 usteer_roam_sm_start_scan(struct sta_info *si, struct uevent *ev)
 {
+	bool inserted;
+	if (usteer_scan_requester_id < 0)
+		return;
+
+	if (usteer_scan_timeout_active(si))
+		return;
+
+	if (usteer_scan_list_add_table(si, usteer_scan_requester_id) ||
+	    usteer_scan_list_add_remote(si, 5, usteer_scan_requester_id))
+		inserted = true;
+	
+	if (!inserted)
+		return;
+
 	/* Start scanning in case we are not timeout-constrained or timeout has expired */
 	if (usteer_scan_start(si)) {
 		usteer_roam_set_state(si, ROAM_TRIGGER_SCAN, ev);
@@ -73,7 +89,8 @@ usteer_roam_trigger_sm(struct usteer_local_node *ln, struct sta_info *si)
 			break;
 		
 		/* Kick back to idle state in case scan finished */
-		if (!usteer_scan_active(si)) {
+		if (si->roam_scan_finished) {
+			si->roam_scan_finished = false;
 			if (si->signal <= config.roam_trigger_snr)
 				si->roam_tries++;
 
@@ -176,5 +193,22 @@ usteer_roam_check(struct usteer_local_node *ln)
 		 */
 		if (usteer_roam_trigger_sm(ln, si))
 			return;
+	}
+}
+
+static void usteer_roam_scan_finished_cb(struct sta_info *si)
+{
+	si->roam_scan_finished = true;
+}
+
+static void __usteer_init usteer_roaming_init(void) 
+{
+	int id;
+
+	usteer_scan_requester_id = -1;
+
+	id = usteer_scan_requester_register("ROAMING", &usteer_roam_scan_finished_cb);
+	if (id >= 0) {
+		usteer_scan_requester_id = id;
 	}
 }

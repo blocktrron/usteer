@@ -26,6 +26,7 @@
 #include <libubox/utils.h>
 #include <libubox/kvlist.h>
 #include <libubus.h>
+#include "scan.h"
 #include "utils.h"
 #include "timeout.h"
 
@@ -244,6 +245,7 @@ struct usteer_client_scan {
 	enum usteer_beacon_measurement_mode mode;
 	uint8_t op_class;
 	uint8_t channel;
+	uint32_t request_sources;
 };
 
 struct sta_info {
@@ -272,6 +274,7 @@ struct sta_info {
 	uint8_t roam_tries;
 	uint64_t roam_event;
 	uint64_t roam_kick;
+	bool roam_scan_finished;
 	uint64_t last_steer;
 
 	struct {
@@ -466,12 +469,25 @@ int usteer_ubus_trigger_link_measurement(struct sta_info *si);
 
 void usteer_roam_check(struct usteer_local_node *ln);
 
-void usteer_scan_list_clear(struct sta_info *si);
+/* Scanning */
+struct usteer_scan_requester {
+    struct list_head list; 
+    int id;
+    const char *name;
+    void (*scan_finish_cb)(struct sta_info *si);
+};
 
-bool usteer_scan_active(struct sta_info *si);
+int usteer_scan_requester_register(const char *name, void (*scan_finish_cb)(struct sta_info *si));
+
+bool usteer_scan_timeout_active(struct sta_info *si);
 bool usteer_scan_start(struct sta_info *si);
 void usteer_scan_stop(struct sta_info *si);
+void usteer_scan_cancel(struct sta_info *si, uint8_t requester);
 void usteer_scan_next(struct sta_info *si);
+
+bool usteer_scan_list_add_table(struct sta_info *si, uint8_t requester);
+bool usteer_scan_list_add_remote(struct sta_info *si, int count, uint8_t requester);
+void usteer_scan_list_clear(struct sta_info *si);
 
 static inline char *
 usteer_beacon_measurement_mode_name(enum usteer_beacon_measurement_mode mode)
