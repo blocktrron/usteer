@@ -153,6 +153,7 @@ usteer_sta_get(const uint8_t *addr, bool create)
 
 void usteer_sta_disconnected(struct sta_info *si)
 {
+	usteer_scan_list_clear(si);
 	si->connected = STA_NOT_CONNECTED;
 	si->kick_time = 0;
 	si->connected_since = 0;
