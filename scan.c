@@ -13,17 +13,17 @@ static uint8_t next_requester_id = 0;
 static LIST_HEAD(scan_requesters);
 
 
-int usteer_scan_requester_register(const char *name, void (*scan_finish_cb)())
+struct usteer_scan_requester *usteer_scan_requester_register(const char *name, void (*scan_finish_cb)())
 {
 	struct usteer_scan_requester *requester;
 
 	if (next_requester_id == 32)
-		return -1;
+		return NULL;
 
 	requester = calloc(1, sizeof(struct usteer_scan_requester));
 
 	if (!requester)
-		return -1;
+		return NULL;
 	
 	requester->id = next_requester_id;
 	requester->name = name;
@@ -31,7 +31,7 @@ int usteer_scan_requester_register(const char *name, void (*scan_finish_cb)())
 	next_requester_id++;
 
 	list_add(&requester->list, &scan_requesters);
-	return requester->id;
+	return requester;
 }
 
 static int usteer_scan_node_to_op_class(struct usteer_node *node)
@@ -63,7 +63,7 @@ static struct usteer_client_scan *usteer_scan_list_contains(struct sta_info *si,
 	return NULL;
 }
 
-static bool usteer_scan_list_add(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel, uint8_t requester)
+static bool usteer_scan_list_add(struct sta_info *si, enum usteer_beacon_measurement_mode mode, uint8_t op_class, uint8_t channel, struct usteer_scan_requester *requester)
 {
 	struct usteer_client_scan *s = usteer_scan_list_contains(si, mode, op_class, channel);
 
@@ -78,11 +78,11 @@ static bool usteer_scan_list_add(struct sta_info *si, enum usteer_beacon_measure
 	s->mode = mode;
 	s->op_class = op_class;
 	s->channel = channel;
-	s->request_sources |= 1 << requester;
+	s->request_sources |= 1 << requester->id;
 	return true;
 }
 
-static bool usteer_scan_list_add_node(struct sta_info *si, struct usteer_node *node, uint8_t requester)
+static bool usteer_scan_list_add_node(struct sta_info *si, struct usteer_node *node, struct usteer_scan_requester *requester)
 {
 	if (node->freq < 3000) {
 		if (usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_ACTIVE)) {
@@ -102,7 +102,7 @@ static bool usteer_scan_list_add_node(struct sta_info *si, struct usteer_node *n
 	return false;
 }
 
-bool usteer_scan_list_add_table(struct sta_info *si, uint8_t requester)
+bool usteer_scan_list_add_table(struct sta_info *si, struct usteer_scan_requester *requester)
 {
 	if (!usteer_sta_supports_beacon_measurement_mode(si, BEACON_MEASUREMENT_TABLE))
 		return false;
@@ -110,7 +110,7 @@ bool usteer_scan_list_add_table(struct sta_info *si, uint8_t requester)
 	return usteer_scan_list_add(si, BEACON_MEASUREMENT_TABLE, 0, 0, requester);
 }
 
-bool usteer_scan_list_add_remote(struct sta_info *si, int count, uint8_t requester)
+bool usteer_scan_list_add_remote(struct sta_info *si, int count, struct usteer_scan_requester *requester)
 {
 	struct usteer_node *node;
 	bool inserted = false;
@@ -172,12 +172,12 @@ void usteer_scan_stop(struct sta_info *si)
 	si->scan.end = current_time;
 }
 
-void usteer_scan_cancel(struct sta_info *si, uint8_t requester)
+void usteer_scan_cancel(struct sta_info *si, struct usteer_scan_requester *requester)
 {
 	struct usteer_client_scan *s, *tmp;
 
 	list_for_each_entry_safe(s, tmp, &si->scan.queue, list) {
-		s->request_sources = s->request_sources & ~(1 << requester);
+		s->request_sources = s->request_sources & ~(1 << requester->id);
 		if (!s->request_sources) {
 			list_del(&s->list);
 			free(s);
